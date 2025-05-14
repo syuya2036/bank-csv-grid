@@ -26,23 +26,30 @@ const RawSchema = z.object({
  * 住信SBIネット銀行 CSV → 共通 TransactionRow
  */
 export function convertSbi(raw: Record<string, string>): TransactionRow {
-  const data = RawSchema.parse(raw)
-
-  const credit = + (data['入金金額(円)']!.replace(/,/g, '') || 0)
-  const debit  = + (data['出金金額(円)']!.replace(/,/g, '') || 0)
-
-  return {
-    id: crypto.randomUUID(),
-    bank: BANK_CODE,
-    date: data['取引日'],
-    description: data['内容'],
-    credit,
-    debit,
-    balance: data['残高(円)']
-              ? +data['残高(円)']!.replace(/,/g, '')
-              : undefined,
+    const credit = parseNumber(raw['入金金額(円)'])
+    const debit  = parseNumber(raw['出金金額(円)'])
+  
+    return {
+      id        : crypto.randomUUID(),
+      bank      : BANK_CODE,
+      date   : raw['取引日'],
+      description: raw['内容'],
+      credit : parseYen(raw['入金金額(円)']),
+      debit  : parseYen(raw['出金金額(円)']),
+      balance: parseYen(raw['残高(円)']),
+      memo      : raw['メモ']?.trim() ?? ''
+    }
   }
+  /** 「1,234」→1234、空欄→0 を保証 */
+function parseYen(src?: string) {
+  if (!src) return 0;
+  return Number(src.replaceAll(',', '')) || 0;
 }
+
+  function parseNumber(v?: string) {
+    if (!v) return undefined
+    return Number(v.replaceAll(',', '')) || 0
+  }
 
 export function toCsv(rows: TransactionRow[]): string {
   const header = ['取引日', '内容', '入金', '出金', '残高'].join(',');
@@ -52,8 +59,8 @@ export function toCsv(rows: TransactionRow[]): string {
       [
         r.date,
         r.description,
-        r.credit || '',
-        r.debit || '',
+        r.credit ?? 0,   // 0 埋め
+        r.debit  ?? 0,
         r.balance ?? ''
       ].join(',')
     )
@@ -69,11 +76,12 @@ export function toCsvSbi(rows: TransactionRow[]): string {
       [
         r.date,
         r.description,
-        r.credit || '',
-        r.debit || '',
+        r.credit ?? 0,
+        r.debit  ?? 0,
         r.balance ?? ''
       ].join(',')
     )
     .join('\n');
   return `${header}\n${body}`;
 }
+
