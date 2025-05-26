@@ -1,16 +1,26 @@
 // src/utils/exporter.ts
-import type { BankCode }       from '@/types/bank';
-import type { TransactionRow } from '@/types/transaction';
+import type { BankCode }       from '@/types/bank'
+import type { TransactionRow } from '@/types/transaction'
 
-interface CsvOptions { headers?: string[] }
+/** CSV 生成オプション */
+interface CsvOptions {
+    /** ヘッダーを完全に上書きしたいとき */
+    headers?     : string[]
+    /** true を渡すと ID / 銀行 列も含める */
+    includeMeta? : boolean
+  }
 
-/**
+  /**
  * 共通 CSV 生成
- * - headers が 8 列なら id/bank 付き
- * - それ以外は id/bank を除外
+ * - includeMeta が true → id / bank を含める
+ * - デフォルトは meta を出さない
  */
-function defaultCsv(rows: TransactionRow[], headers: string[]): string {
-  const includeMeta = headers.length === 8;
+
+  function buildCsv(
+      rows   : TransactionRow[],
+      headers: string[],
+      includeMeta: boolean
+    ): string {
 
   const body = rows
     .map(r => {
@@ -33,12 +43,18 @@ function defaultCsv(rows: TransactionRow[], headers: string[]): string {
 
 /** 銀行別 CSV 生成（当面は共通ロジックでカバー） */
 export function toCsv(
-  _bank: BankCode,
+  bank: BankCode,
   rows : TransactionRow[],
   opts : CsvOptions = {}
 ): string {
-  const headers = opts.headers ??
-    ['ID','銀行','取引日','内容','入金','出金','残高','メモ'];
-
-  return defaultCsv(rows, headers);
+    const baseHeaders = ['取引日','内容','入金','出金','残高','メモ'] as const
+    const includeMeta = opts.includeMeta ?? false
+    const headers     = opts.headers
+      ?? (includeMeta ? ['ID','銀行', ...baseHeaders] : [...baseHeaders])
+  
+    // --- 例) PayPay だけ SJIS 出力にしたい場合のフック ----------
+    // if (bank === 'paypay') { return encodeSjis(buildCsv(...)) }
+    // -------------------------------------------------------------
+  
+    return buildCsv(rows, headers, includeMeta)
 }
