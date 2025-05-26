@@ -12,11 +12,11 @@ interface Props {
 
 export default function ExportModal({ bank, rows }: Props) {
   const handleExport = () => {
-    const csv = toCsv(bank, rows, {
-      headers: ['取引日', '内容', '入金', '出金', '残高', 'メモ']
+     // 行データは 8 列 (id,bank,…)。ヘッダーも 8 列に揃える
+     const csv = toCsv(bank, rows, {
+      headers: ['ID','銀行','取引日','内容','入金','出金','残高','メモ']
     });
-    /* Excel が UTF-8 を正しく判定できるよう BOM を付与 */
-    const bomCsv = '\uFEFF' + csv;
+    const bomCsv = '\uFEFF' + csv;   // Excel 用 BOM
     const blob = new Blob([bomCsv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

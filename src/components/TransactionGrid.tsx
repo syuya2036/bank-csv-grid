@@ -1,6 +1,10 @@
 // src/components/TransactionGrid.tsx
 'use client';
-import { DataGrid, type Column } from 'react-data-grid';
+import {
+  DataGrid,
+  type Column,
+  type DefaultColumnOptions
+} from 'react-data-grid';
 import type { TransactionRow } from '@/types/transaction';
 import { useState } from 'react';
 import { buildColumns } from '@/utils/summary';
@@ -11,7 +15,7 @@ interface Props {
 }
 
 export default function TransactionGrid({ rows, onRowsChange }: Props) {
-  /** グリッドに出したい列（表示順）を宣言 */
+  /** グリッドに出したい列（表示順） */
   const visible: (keyof TransactionRow)[] = [
     'date',
     'description',
@@ -20,19 +24,22 @@ export default function TransactionGrid({ rows, onRowsChange }: Props) {
     'balance',
     'memo'
   ];
-  const [columns] = useState(() => buildColumns());
+  const [columns] = useState(() => buildColumns(visible));
+
+  /** 幅 0 で消えるのを防ぐ共通設定 */
+  const defaultCol: DefaultColumnOptions<TransactionRow, unknown> = {
+    resizable: true,
+    width: 110
+  };
 
   return (
-    <div className="overflow-x-auto">
-      <DataGrid
-        className="rdg-light h-[600px] min-w-full"
-        columns={columns as Column<any>[]}
-        rows={rows}
-        onRowsChange={(r /* 更新後配列 */, _d) =>
-          onRowsChange(r as TransactionRow[])
-        }
-        rowKeyGetter={(row: TransactionRow) => row.id}
-      />
-    </div>
+    <DataGrid
+      className="rdg-light h-[600px] overflow-x-auto"
+      columns={columns as Column<any>[]}
+      rows={rows}
+      onRowsChange={(updated, _d) => onRowsChange(updated as TransactionRow[])}
+      rowKeyGetter={(r: TransactionRow) => r.id}
+      defaultColumnOptions={defaultCol}
+    />
   );
 }
