@@ -11,11 +11,12 @@ interface Props {
 }
 
 export default function ExportModal({ bank, rows }: Props) {
-  const handleExport = () => {
-     // 行データは 8 列 (id,bank,…)。ヘッダーも 8 列に揃える
-     const csv = toCsv(bank, rows, {
-      headers: ['ID','銀行','取引日','内容','入金','出金','残高','メモ']
-    });
+    const handleExport = () => {
+      if (rows.length === 0) return;
+      const csv = toCsv(bank, rows, {
+        // 6 列ヘッダーなら `exporter.ts` が自動で id/bank を除外
+        headers: ['取引日','内容','入金','出金','残高','メモ']
+      });
     const bomCsv = '\uFEFF' + csv;   // Excel 用 BOM
     const blob = new Blob([bomCsv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
@@ -23,5 +24,9 @@ export default function ExportModal({ bank, rows }: Props) {
     a.download = `${bank}-edited.csv`;
     a.click();
   };
-  return <Button onClick={handleExport}>Export CSV</Button>;
+  return (
+        <Button onClick={handleExport} disabled={rows.length === 0}>
+          Export CSV
+        </Button>
+      );
 }
