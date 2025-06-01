@@ -12,6 +12,7 @@ export default function BankSelect({ value, onChange }: Props) {
         <SelectItem value="paypay">PayPay</SelectItem>
         <SelectItem value="gmo">GMO あおぞら</SelectItem>
         <SelectItem value="sbi">住信SBI</SelectItem>
+        <SelectItem value="mizuhoebiz">みずほ銀行ｅＢｉｚ</SelectItem>
       </SelectContent>
     </Select>
   );
