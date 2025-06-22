@@ -1,1 +1,1 @@
-export type BankCode = 'paypay' | 'gmo' | 'sbi' | 'mizuhoebiz';
+export type BankCode = 'paypay' | 'gmo' | 'sbi' | 'mizuhoebiz' | 'mizuhobizweb';

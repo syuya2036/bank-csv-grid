@@ -34,7 +34,8 @@ interface Props {
         <option value="paypay">PayPay</option>
         <option value="gmo">GMO あおぞら</option>
         <option value="sbi">住信 SBI</option>
-        <option value="mizuhoebiz">みずほ銀行ｅＢｉｚ</option>
+        <option value="mizuhoebiz">みずほ e Biz</option>
+        <option value="mizuhobizweb">みずほ Biz Web</option> 
       </select>
       <Button onClick={handleImport} disabled={!file}>Import</Button>
       {progress > 0 && <Progress value={progress} />}
