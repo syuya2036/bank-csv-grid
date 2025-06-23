@@ -23,6 +23,7 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow, GridKey>[]
     debit: { name: '出金' },
     balance: { name: '残高' },
     memo: { name: 'メモ' },
+    tag:         { name: 'タグ' }
   };
   return keys.map((key) => ({
     ...template[key],

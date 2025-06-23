@@ -10,4 +10,5 @@ export interface TransactionRow {
   debit: number;
   balance?: number;
   memo?: string;
+  tag?: string;      // ← 新規
 }

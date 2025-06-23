@@ -13,7 +13,8 @@ const header: Record<keyof TransactionRow, string> = {
   credit: '入金',
   debit: '出金',
   balance: '残高',
-  memo: 'メモ'
+  memo: 'メモ',
+  tag:         'タグ'
 };
 
 /**
@@ -27,7 +28,8 @@ export function buildColumns(
     'credit',
     'debit',
     'balance',
-    'memo'
+    'memo',
+    'tag'
   ]
 ): Column<TransactionRow, unknown>[] {
   return keys.map((k): Column<TransactionRow> => {
@@ -67,6 +69,7 @@ export function calcSummary(rows: TransactionRow[]): SummaryRow {
     credit,
     debit,
     balance: 0,
-    memo: ''
+    memo: '',
+    tag:''
   };
 }
