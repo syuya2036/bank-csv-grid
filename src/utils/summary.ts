@@ -43,13 +43,30 @@ export function buildColumns(
   });
 }
 
-export function calcSummary(rows: TransactionRow[]) {
-  return rows.reduce(
-    (acc, r) => {
-      acc.credit += r.credit;
-      acc.debit += r.debit;
-      return acc;
-    },
-    { credit: 0, debit: 0 }
-  );
+/** TransactionRow 全キーを持つサマリー型 */
+/** サマリー行も TransactionRow と同じ型を持つ */
+export interface SummaryRow extends TransactionRow {
+  /** 固定 ID */
+  id: '__summary__';
+  /** 固定表示文字 */
+  description: '合計';
+  // bank/date/memo/balance 等は親の TransactionRow 定義に従う
+}
+
+/** 合計行を生成 */
+export function calcSummary(rows: TransactionRow[]): SummaryRow {
+  const credit = rows.reduce((sum, r) => sum + r.credit, 0);
+  const debit = rows.reduce((sum, r) => sum + r.debit, 0);
+  // 先頭行の bank をそのまま継承（BankCode 型なので型エラーなし）
+  const bank = rows[0]?.bank;
+  return {
+    id: '__summary__',
+    bank,
+    date: '',
+    description: '合計',
+    credit,
+    debit,
+    balance: 0,
+    memo: ''
+  };
 }

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import 'react-data-grid/lib/styles.css';
+@tailwind base;
+.rdg-light table { all: unset; }
 
 @custom-variant dark (&:is(.dark *));
 
