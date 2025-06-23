@@ -1,23 +1,46 @@
 // src/utils/buildColumns.ts
-import type { Column } from 'react-data-grid';
-import type { TransactionRow } from '@/types/transaction';
-import TagSelectEditor from '@/components/TagSelectEditor';
-import { formatYen } from '@/utils/formatYen';
+import type { Column }            from 'react-data-grid';
+import type { TransactionRow }    from '@/types/transaction';
+import TagSelectEditor            from '@/components/TagSelectEditor';
+import { parseYen }               from '@/utils/parseYen';
 
+/**
+ * DataGrid 用の取引テーブル列定義を返す
+ */
 export function buildColumns(): Column<TransactionRow>[] {
   return [
-    { key:'date',        name:'取引日',       resizable:true },
-    { key:'description', name:'内容',         resizable:true },
-    { key:'credit',      name:'入金',   formatter:({row})=>formatYen(row.credit),   resizable:true },
-    { key:'debit',       name:'出金',   formatter:({row})=>formatYen(row.debit),    resizable:true },
-    { key:'balance',     name:'残高',   formatter:({row})=>row.balance!=null?formatYen(row.balance):'', resizable:true },
-    { key:'memo',        name:'メモ',         resizable:true },
+    { key: 'date',        name: '取引日',   resizable: true },
+    { key: 'description', name: '適用',     resizable: true },
     {
-      key:      'tag',
-      name:     'タグ',
-      editable: true,
-      editor:   TagSelectEditor,
-      width:    120,
+      key: 'credit',
+      name: '入金',
+      resizable: true,
+      renderCell: ({ row }: { row: TransactionRow }) =>
+        parseYen(String(row.credit)).toLocaleString(),
+    },
+    {
+      key: 'debit',
+      name: '出金',
+      resizable: true,
+      renderCell: ({ row }: { row: TransactionRow }) =>
+        parseYen(String(row.debit)).toLocaleString(),
+    },
+    {
+      key: 'balance',
+      name: '残高',
+      resizable: true,
+      renderCell: ({ row }: { row: TransactionRow }) =>
+        row.balance != null
+          ? parseYen(String(row.balance)).toLocaleString()
+          : '',
+    },
+    { key: 'memo', name: 'メモ', resizable: true },
+    {
+      key:            'tag',
+      name:           'タグ',
+      width:          120,
+      editable:       true,
+      renderEditCell: TagSelectEditor,
     },
   ];
 }
