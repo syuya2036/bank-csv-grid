@@ -13,6 +13,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
+
 model Transaction {
   id          String   @id @default(cuid())
   bank        String
@@ -24,4 +26,11 @@ model Transaction {
   memo        String?
   tag         String?    // ← 新規追加
   createdAt   DateTime @default(now())
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
