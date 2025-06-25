@@ -3,6 +3,9 @@ import type { Column }            from 'react-data-grid';
 import type { TransactionRow }    from '@/types/transaction';
 import TagSelectEditor            from '@/components/TagSelectEditor';
 import { parseYen }               from '@/utils/parseYen';
+import React from 'react';
+import type { RenderCellProps, RenderEditCellProps } from 'react-data-grid';
+
 
 /**
  * DataGrid 用の取引テーブル列定義を返す
@@ -42,5 +45,6 @@ export function buildColumns(): Column<TransactionRow>[] {
       editable:       true,
       renderEditCell: TagSelectEditor,
     },
+    
   ];
 }

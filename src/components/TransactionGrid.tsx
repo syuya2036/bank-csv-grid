@@ -13,7 +13,6 @@ interface Props {
 }
 
 export default function TransactionGrid({ rows, onRowsChange }: Props) {
-  // 表示する列キーを指定
   const visible: GridKey[] = [
     'id',
     'bank',
@@ -22,7 +21,8 @@ export default function TransactionGrid({ rows, onRowsChange }: Props) {
     'credit',
     'debit',
     'balance',
-    'memo'
+    'memo',
+    'tag', // 9 列目
   ];
   const columns = useMemo(() => buildColumns(visible), [visible]);
 

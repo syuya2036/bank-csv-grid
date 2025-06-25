@@ -1,44 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import type { Column, RenderEditCellProps } from 'react-data-grid';
+/* eslint-disable react/jsx-no-bind */
+'use client';
+import React from 'react';
+import type { RenderEditCellProps } from 'react-data-grid';
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem,
+  SelectItem
 } from '@/components/ui/select';
 import { useTagOptions } from '@/hooks/useTagOptions';
+import { UNASSIGNED_TAG } from '@/constants/tags';
 import type { TransactionRow } from '@/types/transaction';
 
-/**
- * タグを編集するセルエディタ
- * react-data-grid の RenderEditCellProps をそのまま使う。
- */
 export default function TagSelectEditor({
   row,
-  column,
   onRowChange,
   onClose,
-}: RenderEditCellProps<TransactionRow, unknown>) {
+}: RenderEditCellProps<TransactionRow>) {
   const options = useTagOptions();
-  const [value, setValue] = useState<string>(row.tag ?? '');
+  const EMPTY = UNASSIGNED_TAG;
 
-  /* 外部更新に追従 */
-  useEffect(() => setValue(row.tag ?? ''), [row.tag]);
-
-  /* 選択時に即コミットしてエディタを閉じる */
-  const handleSelect = (v: string) => {
-    onRowChange({ ...row, tag: v });
-    onClose();
-  };
+  function handleSelect(v: string) {
+    const newTag = v === EMPTY ? undefined : v;
+    if (row.tag !== newTag) {
+      onRowChange({ ...row, tag: newTag });
+    }
+    setTimeout(onClose, 0); // 編集確定の競合回避
+  }
 
   return (
-    <Select value={value} onValueChange={handleSelect}>
+    <Select
+      value={row.tag ?? EMPTY}
+      onValueChange={handleSelect}
+    >
       <SelectTrigger autoFocus>
         <SelectValue placeholder="タグを選択" />
       </SelectTrigger>
       <SelectContent>
-        {options.map(opt => (
+        {options.map((opt) => (
           <SelectItem key={opt.value} value={opt.value}>
             {opt.label}
           </SelectItem>
