@@ -1,7 +1,8 @@
 /* eslint-disable react/jsx-no-bind */
 'use client';
+
 import React from 'react';
-import type { RenderEditCellProps } from 'react-data-grid';
+import type { EditorProps } from '@/types/react-data-grid';
 import {
   Select,
   SelectTrigger,
@@ -15,9 +16,11 @@ import type { TransactionRow } from '@/types/transaction';
 
 export default function TagSelectEditor({
   row,
+  rowIdx,
+  column,
   onRowChange,
   onClose,
-}: RenderEditCellProps<TransactionRow>) {
+}: EditorProps<TransactionRow>) {
   const options = useTagOptions();
   const EMPTY = UNASSIGNED_TAG;
 
@@ -30,10 +33,7 @@ export default function TagSelectEditor({
   }
 
   return (
-    <Select
-      value={row.tag ?? EMPTY}
-      onValueChange={handleSelect}
-    >
+    <Select value={row.tag ?? EMPTY} onValueChange={handleSelect}>
       <SelectTrigger autoFocus>
         <SelectValue placeholder="タグを選択" />
       </SelectTrigger>

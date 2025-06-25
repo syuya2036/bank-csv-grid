@@ -1,12 +1,23 @@
 'use client';
+
+import React from 'react';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import type { BankCode } from '@/types/bank';
 import FileImporter from '@/components/FileImporter';
-import TransactionGrid from '@/components/TransactionGrid';
 import ExportModal from '@/components/ExportModal';
+import TransactionGrid from '@/components/TransactionGrid';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useImportService } from '@/hooks/useImportService';
-import { TagMasterEditor } from '@/components/TagMasterEditor';
+
+// TagMasterEditor をクライアントサイドのみで読み込む（型パラメータ省略）
+const DynamicTagMasterEditor = dynamic(
+  async () => {
+    const mod = await import('@/components/TagMasterEditor');
+    return mod.TagMasterEditor;
+  },
+  { ssr: false }
+);
 
 export default function Page() {
   const [bank, setBank] = useState<BankCode>('gmo');
@@ -23,16 +34,17 @@ export default function Page() {
         />
         <ExportModal bank={bank} />
       </div>
+
       {isLoading && <p>読み込み中…</p>}
 
-      <section style={{ margin: '24px 0' }}>
-        <TagMasterEditor />
+      <section>
+        <DynamicTagMasterEditor />
       </section>
+
       <TransactionGrid
         rows={rows}
-        onRowsChange={nextRows => {
-          // 必ず参照が変わる操作をする。SWRの場合はrefreshで再取得。
-          refresh(); // or mutate()
+        onRowsChange={() => {
+          refresh();
         }}
       />
     </main>

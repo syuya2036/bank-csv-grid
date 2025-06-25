@@ -1,40 +1,47 @@
-// src/components/TransactionGrid.tsx
 'use client';
-import React, { useMemo } from 'react';
-import { DataGrid, type Column } from 'react-data-grid';
+
+import React from 'react';
+// v7 の DataGrid は名前付きエクスポート
+import { DataGrid, RowsChangeData } from 'react-data-grid';
+import { buildColumns, GridKey } from '@/utils/columns';
 import type { TransactionRow } from '@/types/transaction';
-import { buildColumns, type GridKey } from '@/utils/columns';
-import { defaultColumnOptions } from '@/utils/gridDefaults';
-import { calcSummary, type SummaryRow } from '@/utils/summary';
 
-interface Props {
+type TransactionGridProps = {
   rows: TransactionRow[];
-  onRowsChange(r: TransactionRow[]): void;
-}
+  onRowsChange: (rows: TransactionRow[]) => void;
+};
 
-export default function TransactionGrid({ rows, onRowsChange }: Props) {
-  const visible: GridKey[] = [
-    'id',
-    'bank',
-    'date',
-    'description',
-    'credit',
-    'debit',
-    'balance',
-    'memo',
-    'tag', // 9 列目
-  ];
-  const columns = useMemo(() => buildColumns(visible), [visible]);
+export default function TransactionGrid({
+  rows,
+  onRowsChange
+}: TransactionGridProps) {
+  if (rows.length === 0) {
+    return <p>データがありません</p>;
+  }
+
+  const columns = buildColumns(Object.keys(rows[0]) as GridKey[]);
 
   return (
-    <DataGrid<TransactionRow | SummaryRow, unknown, string>
-      className="rdg-light h-[600px] overflow-x-auto"
-      columns={columns as Column<any>[]}
-      rows={rows}
-      onRowsChange={(updated) => onRowsChange(updated as TransactionRow[])}
-      rowKeyGetter={(r) => r.id}
-      defaultColumnOptions={defaultColumnOptions}
-      bottomSummaryRows={[calcSummary(rows)]}
-    />
+    <div className="w-full h-[600px]">
+      <DataGrid
+          columns={columns}
+          rows={rows}
+          // ここが必須！
+          rowKeyGetter={(row: TransactionRow) => row.id.toString()}
+          onRowsChange={(
+            updatedRows: TransactionRow[],
+            data: RowsChangeData<TransactionRow>
+          ) => {
+            console.debug('TransactionGrid onRowsChange, firstRow=', updatedRows[0]);
+            onRowsChange(updatedRows);
+          }}
+          defaultColumnOptions={{
+            sortable: false,
+            resizable: true,
+            //editable: false
+          }}
+      />  
+
+    </div>
   );
 }

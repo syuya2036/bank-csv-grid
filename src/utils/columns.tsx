@@ -3,8 +3,21 @@
 import React from 'react';
 import type { Column } from 'react-data-grid';
 import type { TransactionRow } from '@/types/transaction';
+import type { EditorProps, FormatterProps } from '@/types/react-data-grid';
 import TagSelectEditor from '@/components/TagSelectEditor';
-import { UNASSIGNED_TAG } from '@/constants/tags';
+
+/** セル表示用フォーマッタ */
+function TagCellFormatter({ row }: FormatterProps<TransactionRow>) {
+  return (
+    <div
+      className={`px-1 rounded text-xs ${
+        row.tag ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-600'
+      }`}
+    >
+      {row.tag || '未割当'}
+    </div>
+  );
+}
 
 export type GridKey = keyof TransactionRow;
 
@@ -28,15 +41,12 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         name: JP_NAME.tag,
         width: 140,
         editable: true,
-        renderEditCell: TagSelectEditor,
-        renderCell: ({ row }) => (
-          <div
-            className={`px-1 rounded text-xs ${
-              row.tag ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-600'
-            }`}
-          >
-            {row.tag || '未割当'}
-          </div>
+        // カスタム型を利用
+        editor: (p: EditorProps<TransactionRow>) => (
+          <TagSelectEditor {...p} />
+        ),
+        formatter: (p: FormatterProps<TransactionRow>) => (
+          <TagCellFormatter {...p} />
         ),
       } as Column<TransactionRow>;
     }
