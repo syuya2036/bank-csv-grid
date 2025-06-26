@@ -1,10 +1,12 @@
+// src/components/TransactionGrid.tsx
 'use client';
 
 import React from 'react';
-// v7 の DataGrid は名前付きエクスポート
 import { DataGrid, RowsChangeData } from 'react-data-grid';
 import { buildColumns, GridKey } from '@/utils/columns';
 import type { TransactionRow } from '@/types/transaction';
+// 追加インポート
+import { defaultColumnOptions } from '@/utils/gridDefaults';
 
 type TransactionGridProps = {
   rows: TransactionRow[];
@@ -24,24 +26,19 @@ export default function TransactionGrid({
   return (
     <div className="w-full h-[600px]">
       <DataGrid
-          columns={columns}
-          rows={rows}
-          // ここが必須！
-          rowKeyGetter={(row: TransactionRow) => row.id.toString()}
-          onRowsChange={(
-            updatedRows: TransactionRow[],
-            data: RowsChangeData<TransactionRow>
-          ) => {
-            console.debug('TransactionGrid onRowsChange, firstRow=', updatedRows[0]);
-            onRowsChange(updatedRows);
-          }}
-          defaultColumnOptions={{
-            sortable: false,
-            resizable: true,
-            //editable: false
-          }}
-      />  
-
+        columns={columns}
+        rows={rows}
+        rowKeyGetter={(row: TransactionRow) => row.id.toString()}
+        onRowsChange={(
+          updatedRows: TransactionRow[],
+          data: RowsChangeData<TransactionRow>
+        ) => {
+          console.debug('TransactionGrid onRowsChange, firstRow=', updatedRows[0]);
+          onRowsChange(updatedRows);
+        }}
+        // ここでクリック即編集を有効化
+        defaultColumnOptions={defaultColumnOptions}
+      />
     </div>
   );
 }

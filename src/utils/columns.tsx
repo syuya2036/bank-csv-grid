@@ -42,7 +42,7 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         width: 140,
         editable: true,
         // カスタム型を利用
-        editor: (p: EditorProps<TransactionRow>) => (
+        renderEditCell: (p: EditorProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),
         formatter: (p: FormatterProps<TransactionRow>) => (
