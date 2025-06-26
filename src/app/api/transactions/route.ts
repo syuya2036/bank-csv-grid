@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     balance:     r.balance  ?? 0,
     memo:        r.memo     ?? '',
     tag:         r.tag      ?? '',
+    isRegistered: true,               // ← 追加
   }));
 
   return NextResponse.json(formatted);

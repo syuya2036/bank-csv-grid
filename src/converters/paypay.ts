@@ -56,6 +56,7 @@ export function convertPaypay(raw: unknown): TransactionRow {
     credit,
     debit,
     balance,
-    memo: r['メモ'] || ''
+    memo: r['メモ'] || '',
+    isRegistered: false,
   }
 }

@@ -37,7 +37,8 @@ export function convertSbi(raw: Record<string, string>): TransactionRow {
       credit : parseYen(raw['入金金額(円)']),
       debit  : parseYen(raw['出金金額(円)']),
       balance: parseYen(raw['残高(円)']),
-      memo      : raw['メモ']?.trim() ?? ''
+      memo      : raw['メモ']?.trim() ?? '',
+      isRegistered: false,
     }
   }
   /** 「1,234」→1234、空欄→0 を保証 */

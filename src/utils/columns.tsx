@@ -33,7 +33,8 @@ const JP_NAME: Record<GridKey, string> = {
   debit: '出金',
   balance: '残高',
   memo: 'メモ',
-  tag: 'タグ'
+  tag: 'タグ',
+  isRegistered: '登録済み',
 } as const;
 
 // narrow helper
@@ -48,7 +49,7 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         key: narrow('tag'), // keyof TransactionRow リテラルを保証
         name: JP_NAME.tag,
         width: 140,
-        editable: (row: TransactionRow) => !row.tag || row.tag === '',
+        editable: (r) => !r.isRegistered,
         renderEditCell: (p: RenderEditCellProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),

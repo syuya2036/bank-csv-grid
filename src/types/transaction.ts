@@ -11,4 +11,5 @@ export interface TransactionRow {
   balance?: number;
   memo?: string;
   tag?: string;      // ← 新規
+  isRegistered: boolean;
 }

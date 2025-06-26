@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     balance:     r.balance  ?? 0,
     memo:        r.memo     ?? '',
     tag:         r.tag      ?? '',
+    isRegistered: true,
   }));
 
   const csv = toCsv(bank, data, {

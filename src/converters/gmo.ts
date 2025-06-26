@@ -44,6 +44,7 @@ export function convertGmo(raw: Record<string, string>): TransactionRow {
       credit : parseYen(r['入金金額']),
       debit  : parseYen(r['出金金額']),
       balance: r['残高'] ? parseYen(r['残高']) : undefined,
-      memo   : r['メモ']?.trim() || undefined
+      memo   : r['メモ']?.trim() || undefined,
+      isRegistered: false,
     };
 }

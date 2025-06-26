@@ -33,8 +33,8 @@ export default function TagSelectEditor({
   function handleSelect(v: string) {
     const newTag = v === EMPTY ? undefined : v;
     if (row.tag !== newTag) {
-      // 第二引数 true で “確定” 扱いに
-      onRowChange({ ...row, tag: newTag }, true);
+      // ローカル更新のみ (true→false)
+      onRowChange({ ...row, tag: newTag }, false);
     }
     setTimeout(onClose, 0);
   }
