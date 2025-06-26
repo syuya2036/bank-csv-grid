@@ -13,6 +13,7 @@ import {
 import { useTagOptions } from '@/hooks/useTagOptions';
 import { UNASSIGNED_TAG } from '@/constants/tags';
 import type { TransactionRow } from '@/types/transaction';
+const EMPTY = UNASSIGNED_TAG;
 
 /**
  * タグ編集用エディタコンポーネント
@@ -28,10 +29,14 @@ export default function TagSelectEditor({
   const options = useTagOptions();
 
   /** 選択時に即コミット＆閉じる */
+
   function handleSelect(v: string) {
-    const newTag = v === UNASSIGNED_TAG ? undefined : v;
-    onRowChange({ ...row, tag: newTag });
-    onClose();
+    const newTag = v === EMPTY ? undefined : v;
+    if (row.tag !== newTag) {
+      // 第二引数 true で “確定” 扱いに
+      onRowChange({ ...row, tag: newTag }, true);
+    }
+    setTimeout(onClose, 0);
   }
 
   return (

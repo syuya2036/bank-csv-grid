@@ -41,13 +41,14 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         name: JP_NAME.tag,
         width: 140,
         editable: true,
-        // カスタム型を利用
+        // β.52 では renderEditCell / renderCell が正
         renderEditCell: (p: EditorProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),
-        formatter: (p: FormatterProps<TransactionRow>) => (
+        renderCell: (p: FormatterProps<TransactionRow>) => (
           <TagCellFormatter {...p} />
         ),
+
       } as Column<TransactionRow>;
     }
 

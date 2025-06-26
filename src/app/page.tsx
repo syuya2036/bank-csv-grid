@@ -2,7 +2,7 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { BankCode } from '@/types/bank';
 import FileImporter from '@/components/FileImporter';
 import ExportModal from '@/components/ExportModal';
@@ -22,6 +22,9 @@ const DynamicTagMasterEditor = dynamic(
 export default function Page() {
   const [bank, setBank] = useState<BankCode>('gmo');
   const { rows, isLoading, refresh } = useTransactions(bank);
+  const [localRows, setLocalRows] = useState(rows);
+  useEffect(() => setLocalRows(rows), [rows]);
+
   const { registerTransactions } = useImportService(bank);
 
   return (
@@ -42,11 +45,23 @@ export default function Page() {
       </section>
 
       <TransactionGrid
-        rows={rows}
-        onRowsChange={() => {
-          refresh();
+        rows={localRows}
+        onRowsChange={async (updated) => {
+          setLocalRows(updated);           // ① 即座に UI へ
+          const diff = updated.filter((r, i) => r.tag !== rows[i]?.tag);
+          await Promise.all(
+            diff.map(r =>
+              fetch(`/api/transactions/${r.id}`, {
+                method : 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ tag: r.tag }),
+              })
+            )
+          );
+          refresh();                       // ② サーバー確定後に再取得
         }}
       />
+
     </main>
   );
 }
