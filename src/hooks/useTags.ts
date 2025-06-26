@@ -29,7 +29,7 @@ export function useTags() {
   };
 
   // タグ編集
-  const editTag = async (id: number, name: string) => {
+  const editTag = async (id: string, name: string) => {   // ← id 型を string
     const res = await fetch(TAGS_API, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -39,6 +39,12 @@ export function useTags() {
     await mutate(TAGS_API);
     return res.json();
   };
+    // タグ削除
+   const deleteTag = async (id: string) => {
+    const res = await fetch(`${TAGS_API}?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete tag');
+    await mutate(TAGS_API);
+  };
 
   return {
     tags: data,
@@ -46,6 +52,7 @@ export function useTags() {
     isError: !!error,
     addTag,
     editTag,
+    deleteTag,
     mutateTags: () => mutate(TAGS_API),
   };
 }

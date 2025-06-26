@@ -9,12 +9,12 @@ export async function GET() {
       orderBy: { id: 'asc' },
     });
     return NextResponse.json(tags);
-  } catch (error) {
-  console.error('[API /tags GET]', error); // または PATCH/GET用
-  return NextResponse.json({ error: String(error) }, { status: 500 });
+    } catch (error) {
+    console.error('[API /tags GET]', error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
 }
 
-}
 
 // POST /api/tags: 新規追加（nameのみ必須）
 export async function POST(req: NextRequest) {

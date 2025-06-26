@@ -11,13 +11,15 @@ import TagSelectEditor from '@/components/TagSelectEditor';
 
 /* ------- セルフォーマッタ ------------ */
 export function TagCellFormatter({ row }: RenderCellProps<TransactionRow>) {
-  const isTmp = row.id.startsWith('tmp-');
-  const style = isTmp
-    ? row.tag
-      ? 'bg-green-100 text-green-800'
-      : 'bg-red-100 text-red-600'
-    : 'bg-gray-200 text-gray-500';
-  const label = isTmp ? row.tag || '未割当' : row.tag || 'ロック';
+  const isAssigned = !!row.tag;
+  const style = isAssigned
+    ? row.id.startsWith('tmp-')
+      ? 'bg-green-100 text-green-800' // 新規行でタグ決定→緑
+      : 'bg-gray-200 text-gray-500'   // DB 済みでタグ決定→グレー
+    : 'bg-red-100 text-red-600';      // タグ未設定→赤
+
+  const label = isAssigned ? row.tag : '未割当';
+
   return <div className={`px-1 rounded text-xs ${style}`}>{label}</div>;
 }
 
@@ -46,7 +48,7 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         key: narrow('tag'), // keyof TransactionRow リテラルを保証
         name: JP_NAME.tag,
         width: 140,
-        editable: (row: TransactionRow) => row.id.startsWith('tmp-'),
+        editable: (row: TransactionRow) => !row.tag || row.tag === '',
         renderEditCell: (p: RenderEditCellProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),

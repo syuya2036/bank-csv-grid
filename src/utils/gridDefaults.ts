@@ -16,6 +16,7 @@ export const defaultColumnOptions: DefaultColumnOptions<any, any> & {
   sortable: false,
   editorOptions: {
     editOnClick: true,
-    commitOnOutsideClick: true
+    commitOnOutsideClick: true,
+    editable: true
   }
 };
