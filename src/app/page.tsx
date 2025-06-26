@@ -23,7 +23,11 @@ export default function Page() {
   const [bank, setBank] = useState<BankCode>('gmo');
   const { rows, isLoading, refresh } = useTransactions(bank);
   const [localRows, setLocalRows] = useState(rows);
-  useEffect(() => setLocalRows(rows), [rows]);
+  useEffect(() => {
+  // 参照が違うときだけ更新
+  if (rows !== localRows) setLocalRows(rows);
+  }, [rows, localRows]);
+
 
   const { registerTransactions } = useImportService(bank);
 

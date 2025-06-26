@@ -1,14 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }   // Promise 化
 ) {
-  const { tag } = await request.json();
+    const { id } = await params;             // ← await が必須
+  const { tag } = await req.json();
+
   const updated = await prisma.transaction.update({
-    where: { id: params.id },
+    where: { id },
     data : { tag },
   });
+
   return NextResponse.json(updated);
 }

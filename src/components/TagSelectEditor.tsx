@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import type { EditorProps } from '@/types/react-data-grid';
+import type { RenderEditCellProps } from 'react-data-grid';
 import {
   Select,
   SelectTrigger,
@@ -17,7 +17,7 @@ const EMPTY = UNASSIGNED_TAG;
 
 /**
  * タグ編集用エディタコンポーネント
- * - EditorProps<T> 自作型を使用
+ * - react-data-grid の公式型 RenderEditCellProps<T> を使用
  */
 export default function TagSelectEditor({
   row,
@@ -25,7 +25,7 @@ export default function TagSelectEditor({
   column,
   onRowChange,
   onClose,
-}: EditorProps<TransactionRow>) {
+}: RenderEditCellProps<TransactionRow>) {
   const options = useTagOptions();
 
   /** 選択時に即コミット＆閉じる */

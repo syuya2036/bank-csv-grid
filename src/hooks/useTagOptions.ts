@@ -6,6 +6,6 @@ export function useTagOptions() {
   const { tags = [] } = useTags();
   return [
     { value: UNASSIGNED_TAG, label: '（未割当）' },
-    ...tags.map(t => ({ value: t.name, label: t.name }))
+    ...tags.map(t => ({ value: t.name, label: t.name })),
   ];
 }

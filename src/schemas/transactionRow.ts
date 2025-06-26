@@ -9,7 +9,8 @@ export const TransactionRowSchema = z.object({
   credit: z.number(),
   debit: z.number(),
   balance: z.number().optional(),
-  memo: z.string().optional()
+  memo: z.string().optional(),
+  tag: z.string().optional()
 });
 
 export type TransactionRow = z.infer<typeof TransactionRowSchema>;

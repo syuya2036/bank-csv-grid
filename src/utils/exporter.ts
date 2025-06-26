@@ -47,11 +47,10 @@ export function toCsv(
   rows : TransactionRow[],
   opts : CsvOptions = {}
 ): string {
-    const baseHeaders = ['取引日','内容','入金','出金','残高','メモ'] as const
+    const baseHeaders = ['取引日','内容','入金','出金','残高','メモ','タグ'] as const 
     const includeMeta = opts.includeMeta ?? false
     const headers     = opts.headers
-      ?? (includeMeta ? ['ID','銀行', ...baseHeaders] : [...baseHeaders])
-  
+      ?? (includeMeta ? ['ID','銀行', ...baseHeaders] : [...baseHeaders]) // ★ スプレッド演算子修正
     // --- 例) PayPay だけ SJIS 出力にしたい場合のフック ----------
     // if (bank === 'paypay') { return encodeSjis(buildCsv(...)) }
     // -------------------------------------------------------------
