@@ -56,6 +56,7 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
          *   ・登録済みかつ割当済みならロック
          */
         editable: (row) => !row.tag || row.isRegistered === false,
+        //editable: ( row ) => !row.isRegistered,
         renderEditCell: (p: RenderEditCellProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),

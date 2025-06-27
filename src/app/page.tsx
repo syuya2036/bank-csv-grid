@@ -23,9 +23,11 @@ export default function Page() {
   const { rows, isLoading, refresh } = useTransactions(bank);
   const [localRows, setLocalRows] = useState(rows);
 
-  useEffect(() => {
-    if (rows !== localRows) setLocalRows(rows);
-  }, [rows, localRows]);
+  // rowsがサーバから変わった時のみlocalRowsをリセット
+    useEffect(() => {
+      setLocalRows(rows.map(row => ({ ...row })));
+    }, [rows]);
+
 
   const { registerTransactions } = useImportService(bank);
 
@@ -66,10 +68,18 @@ export default function Page() {
       </section>
 
       {/* グリッド */}
+      // onRowsChangeの直前にlogを仕込むことで、参照の変化・中身の違いを確認
       <TransactionGrid
         rows={localRows}
-        onRowsChange={(updated) => setLocalRows(updated)}
+        onRowsChange={(updated) => {
+          console.log('updated rows', updated);
+          // shallow copyの場合はlocalRows[0] === updated[0]がtrueになるので比較
+          console.log('row[0] identity eq?', localRows[0] === updated[0]);
+          setLocalRows(updated.map(row => ({ ...row })));
+        }}
       />
+
+
 
       {/* 一括反映ボタン */}
       <div className="flex justify-end mt-4">

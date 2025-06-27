@@ -34,6 +34,7 @@ export default function TagSelectEditor({
     const newTag = v === EMPTY ? undefined : v;
     if (row.tag !== newTag) {
       // グリッド側には確定＝true で渡す（DB はまだ叩かない）
+      
       onRowChange({ ...row, tag: newTag }, true);
     }
     setTimeout(onClose, 0);
