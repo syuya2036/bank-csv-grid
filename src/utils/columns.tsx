@@ -49,7 +49,13 @@ export function buildColumns(keys: GridKey[]): Column<TransactionRow>[] {
         key: narrow('tag'), // keyof TransactionRow リテラルを保証
         name: JP_NAME.tag,
         width: 140,
-        editable: (r) => !r.isRegistered,
+                /**
+         * 「未割当セルはいつでも編集可」
+         *   ・tag が undefined / '' ⇒ true
+         *   ・登録済みでも未割当なら編集可
+         *   ・登録済みかつ割当済みならロック
+         */
+        editable: (row) => !row.tag || row.isRegistered === false,
         renderEditCell: (p: RenderEditCellProps<TransactionRow>) => (
           <TagSelectEditor {...p} />
         ),
