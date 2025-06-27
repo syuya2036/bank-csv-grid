@@ -23,28 +23,36 @@ export default function Page() {
   const { rows, isLoading, refresh } = useTransactions(bank);
   const [localRows, setLocalRows] = useState(rows);
 
-  // rowsがサーバから変わった時のみlocalRowsをリセット
-    useEffect(() => {
-      setLocalRows(rows.map(row => ({ ...row })));
-    }, [rows]);
+    /* rows がサーバから変わった時のみ localRows をリセット */
+  useEffect(() => {
+    setLocalRows(rows.map(r => ({ ...r })));
+  }, [rows]);
+
 
 
   const { registerTransactions } = useImportService(bank);
 
   // ■ 一括反映ロジック
   const [isSaving, setIsSaving] = useState(false);
-  const handleBulkRegister = async () => {
-    const toRegister = localRows.filter(r => !r.isRegistered && r.tag);
-    if (!toRegister.length) return;
+    const handleBulkRegister = async () => { 
+    const toRegister = localRows.filter(r => !r.isRegistered && r.tag); 
+    if (!toRegister.length) return;          // 対象なし
     setIsSaving(true);
     const res = await fetch('/api/transactions/bulk-register', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toRegister),
     });
-    if (res.ok) {
+        if (res.ok) {
+      const ids = toRegister.map(r => r.id);
+      // ① 即時ロック & 色更新
+      setLocalRows(prev =>
+        prev.map(r => (ids.includes(r.id) ? { ...r, isRegistered: true } : r))
+      );
+      // ② サーバと整合
       await refresh();
     } else {
+
       console.error(await res.text());
     }
     setIsSaving(false);
@@ -68,13 +76,14 @@ export default function Page() {
       </section>
 
       {/* グリッド */}
-      // onRowsChangeの直前にlogを仕込むことで、参照の変化・中身の違いを確認
+      {/* onRowsChangeの直前にlogを仕込むことで、参照の変化・中身の違いを確認 */}
       <TransactionGrid
         rows={localRows}
         onRowsChange={(updated) => {
           console.log('updated rows', updated);
-          // shallow copyの場合はlocalRows[0] === updated[0]がtrueになるので比較
+          {/* shallow copyの場合は localRows[0] === updated[0] が true になるので比較 */}
           console.log('row[0] identity eq?', localRows[0] === updated[0]);
+
           setLocalRows(updated.map(row => ({ ...row })));
         }}
       />
@@ -83,9 +92,9 @@ export default function Page() {
 
       {/* 一括反映ボタン */}
       <div className="flex justify-end mt-4">
-        <button
+                <button
           onClick={handleBulkRegister}
-          disabled={isSaving}
+          disabled={isSaving || !localRows.some(r => !r.isRegistered && r.tag)}
           className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
         >
           内部勘定反映

@@ -38,6 +38,6 @@ export function convertMizuhoEbiz(raw: Record<string,string>): TransactionRow {
     debit,
     balance: yen(r['残高']),
     memo: r['メモ']?.trim() || undefined,
-    isRegistered: false,
+    isRegistered: false,            // ★ 新規行は必ず false
   };
 }

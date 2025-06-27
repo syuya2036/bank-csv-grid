@@ -64,6 +64,6 @@ export function convertMizuhoBizweb(raw: Record<string, string>): TransactionRow
     debit,
     balance: balance || undefined,
     memo,
-    isRegistered: false,
+    isRegistered: false,            // ★ 新規行は必ず false
   };
 }
