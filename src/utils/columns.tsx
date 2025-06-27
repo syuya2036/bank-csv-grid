@@ -11,17 +11,16 @@ import TagSelectEditor from '@/components/TagSelectEditor';
 
 /* ------- セルフォーマッタ ------------ */
 export function TagCellFormatter({ row }: RenderCellProps<TransactionRow>) {
-    const isAssigned  = !!row.tag;
+      let style = 'bg-gray-200 text-gray-500'; // 未割当(灰)
+  let label = '未割当';
 
-  let style  = 'bg-red-100 text-red-600';   // デフォ: 未割当 = 赤
-  let label  = '未割当';
-
-  if (isAssigned) {
-    label = row.tag!;
+  if (row.tag) {
+    label = row.tag;
     style = row.isRegistered
-      ? 'bg-green-100 text-green-800'       // 登録済 = 緑
-      : 'bg-yellow-100 text-yellow-800';    // 未登録だが割当済 = 黄
+      ? 'bg-green-100 text-green-800'   // 登録済み → 緑
+      : 'bg-yellow-100 text-yellow-800';// 未登録だが割当済 → 黄
   }
+
 
 
   return <div className={`px-1 rounded text-xs ${style}`}>{label}</div>;
