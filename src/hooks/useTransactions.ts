@@ -11,7 +11,11 @@ export function useTransactions(bank: string) {
     fetcher
   );
   // same-reference 配列を返す
-  const rows = useMemo<TransactionRow[]>(() => data ?? [], [data]);
+  const rows = useMemo<TransactionRow[]>(() =>
+      (data ?? []).map(r => ({ ...r, isRegistered: true })),
+      [data]
+    );
+
   return {
     rows,
     isLoading: !error && !data,

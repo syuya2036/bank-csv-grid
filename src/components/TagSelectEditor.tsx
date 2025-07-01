@@ -1,3 +1,4 @@
+// src/components/TagSelectEditor.tsx:1-63
 /* eslint-disable react/jsx-no-bind */
 'use client';
 
@@ -15,26 +16,17 @@ import { UNASSIGNED_TAG } from '@/constants/tags';
 import type { TransactionRow } from '@/types/transaction';
 const EMPTY = UNASSIGNED_TAG;
 
-/**
- * タグ編集用エディタコンポーネント
- * - react-data-grid の公式型 RenderEditCellProps<T> を使用
- */
 export default function TagSelectEditor({
   row,
-  rowIdx,
-  column,
   onRowChange,
   onClose,
 }: RenderEditCellProps<TransactionRow>) {
   const options = useTagOptions();
 
-  /** 選択時に即コミット＆閉じる */
-
   function handleSelect(v: string) {
     const newTag = v === EMPTY ? undefined : v;
     if (row.tag !== newTag) {
-      // 第二引数 true で “確定” 扱いに
-      onRowChange({ ...row, tag: newTag }, true);
+      onRowChange({ ...row, tag: newTag, isDirty: true }, true);
     }
     setTimeout(onClose, 0);
   }
@@ -44,10 +36,7 @@ export default function TagSelectEditor({
       value={row.tag ?? UNASSIGNED_TAG}
       onValueChange={handleSelect}
       open={true}
-      onOpenChange={(isOpen) => {
-        // ドロップダウンが閉じたらエディタも閉じる
-        if (!isOpen) onClose();
-      }}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
     >
       <SelectTrigger autoFocus>
         <SelectValue placeholder="タグを選択" />
