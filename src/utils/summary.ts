@@ -15,6 +15,7 @@ const header: Record<keyof TransactionRow, string> = {
   memo: 'メモ',
   tag: 'タグ',
   isRegistered: '登録済み',
+  isDirty: '未反映',  
 };
 
 export function buildColumns(
