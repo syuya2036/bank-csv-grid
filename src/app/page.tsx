@@ -1,4 +1,4 @@
-// src/app/page.tsx:1-120
+// src/app/page.tsx:1-120　
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -20,6 +20,7 @@ export default function Page() {
   const { rows, isLoading, refresh } = useTransactions(bank);
   const { registerTransactions }     = useImportService(bank);
   const [localRows, setLocalRows]    = useState(rows);
+  const [editRegistered, setEditRegistered] = useState(false);
   const [isSaving, setIsSaving]      = useState(false);
 
   useEffect(() => {
@@ -35,7 +36,41 @@ export default function Page() {
     })
   }), [localRows, rows]);
 
-  /* ----- 省略: handleBulkRegister 等は従来どおり ----- */
+/* 一括反映 */
+  const handleBulkRegister = async () => {
+    if (!diff.newRows.length && !diff.changedTags.length) return;
+    setIsSaving(true);
+
+    try {
+      if (diff.newRows.length) {
+        await fetch('/api/transactions/bulk-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(diff.newRows),
+        });
+      }
+      if (diff.changedTags.length) {
+        await fetch('/api/transactions/bulk-tag', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(diff.changedTags.map((r) => ({ id: r.id, tag: r.tag }))),
+        });
+      }
+
+      const newIds     = diff.newRows.map((r) => r.id);
+      const changedIds = diff.changedTags.map((r) => r.id);
+      setLocalRows((prev) =>
+        prev.map((r) =>
+          newIds.includes(r.id) || changedIds.includes(r.id)
+            ? { ...r, isRegistered: true, isDirty: false }
+            : r
+        )
+      );
+      await refresh();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <main className="p-6 space-y-4">
@@ -55,6 +90,15 @@ export default function Page() {
       <section>
         <DynamicTagMasterEditor />
       </section>
+      {/* 編集モード切替 */}
+      <label className="flex items-center gap-1 text-sm">
+        <input
+          type="checkbox"
+          checked={editRegistered}
+          onChange={(e) => setEditRegistered(e.target.checked)}
+        />
+        登録済みも編集する
+      </label>
 
       {/* グリッド */}
       <TransactionGrid
@@ -63,7 +107,15 @@ export default function Page() {
       />
 
       {/* 一括反映ボタン（既存） */}
-      {/* ... */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleBulkRegister}
+          disabled={isSaving || (!diff.newRows.length && !diff.changedTags.length)}
+          className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+        >
+          内部勘定反映
+        </button>
+      </div>
     </main>
   );
 }
