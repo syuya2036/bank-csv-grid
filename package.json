@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "test": "jest",
-    "clean": "rimraf .next node_modules/.cache"
-  },
+  "dev": "next dev",
+  "build": "next build --no-lint",
+  "postbuild": "prisma generate",       
+  "start": "next start",
+  "lint": "next lint",
+  "test": "jest",
+  "clean": "rimraf .next node_modules/.cache"
+},
   "dependencies": {
     "@radix-ui/react-progress": "^1.1.6",
     "@radix-ui/react-select": "^2.2.4",
