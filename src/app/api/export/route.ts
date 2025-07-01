@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       tag:         true,
     },
   });
-  const data: TransactionRow[] = dbRows.map(r => ({
+  const data: TransactionRow[] = dbRows.map((r : any)=> ({
     id:          r.id,
     bank:        r.bank as BankCode,
     date:        r.date.toISOString().slice(0,10).replace(/-/g,'/'),
