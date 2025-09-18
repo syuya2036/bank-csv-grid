@@ -30,7 +30,8 @@ interface CsvOptions {
         r.credit,
         r.debit,
         r.balance ?? '',
-        r.memo    ?? ''
+        r.memo    ?? '',
+        r.tag     ?? ''
       ];
       return includeMeta
         ? [r.id, r.bank, ...main].join(',')

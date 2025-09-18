@@ -13,8 +13,8 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "typeRoots": ["./types", "./node_modules/@types"],   // 追記
-    "types": ["react", "react-dom"],   // 追記
+  "typeRoots": ["./types", "./node_modules/@types"],
+  "types": ["jest", "node", "react", "react-dom"],
     "plugins": [
       {
         "name": "next"
