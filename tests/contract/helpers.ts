@@ -9,7 +9,7 @@ export async function resetDb() {
 export function checkTagShape(obj: any) {
 	expect(typeof obj.id).toBe('string');
 	expect(typeof obj.name).toBe('string');
-	// createdAt/updatedAt は API が Date を ISO 文字列化するか実装次第なので存在のみチェック
-	expect(obj.createdAt).toBeTruthy();
-	expect(obj.updatedAt).toBeTruthy();
+	expect(typeof obj.active).toBe('boolean');
+	expect(typeof obj.order).toBe('number');
+	expect(Array.isArray(obj.children)).toBe(true);
 }
