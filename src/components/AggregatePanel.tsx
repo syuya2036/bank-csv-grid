@@ -79,13 +79,16 @@ export default function AggregatePanel() {
     () => flattenVisible(data?.tree ?? [], expanded),
     [data, expanded]
   );
+
+  const rootNodes = useMemo(() => data?.tree ?? [], [data]);
+
   const totalDebit = useMemo(
-    () => rows.reduce<number>((s, r) => s + (r.debit ?? 0), 0),
-    [rows]
+    () => rootNodes.reduce<number>((s, r) => s + (r.debit ?? 0), 0),
+    [rootNodes]
   );
   const totalCredit = useMemo(
-    () => rows.reduce<number>((s, r) => s + (r.credit ?? 0), 0),
-    [rows]
+    () => rootNodes.reduce<number>((s, r) => s + (r.credit ?? 0), 0),
+    [rootNodes]
   );
 
   function toggle(id: string) {
@@ -102,6 +105,8 @@ export default function AggregatePanel() {
   function collapseAll() {
     setExpanded(new Set());
   }
+
+  console.log({ data, rows });
 
   return (
     <section className="space-y-3">
