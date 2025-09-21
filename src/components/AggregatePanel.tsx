@@ -1,161 +1,167 @@
+"use client";
 
-'use client';
+import BankSelect from "@/components/BankSelect";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { DataGrid, type Column } from 'react-data-grid';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { defaultColumnOptions } from '@/utils/gridDefaults';
-import {
-  aggregateStatement,
-  toTxInput,
-  type TxInput,
-  type StatementLine
-} from '@/utils/aggregateStatement';
-import type { TransactionRow } from '@/types/transaction';
-
-type TaglessMode = 'default' | 'empty-only' | 'never' | 'keywords';
-
-type AggRow = {
+type ReportNode = {
   id: string;
-  tag: string;
-  side: string;
-  amount: number;
-  aggregated: boolean;
-  index?: number;
+  name: string;
+  order: number;
+  active: boolean;
+  debit: number;
+  credit: number;
+  children: ReportNode[];
+};
+
+type ReportResponse = {
+  from: string | null;
+  to: string | null;
+  bank: string | null;
+  tree: ReportNode[];
+};
+
+type FlatRow = ReportNode & {
+  depth: number;
+  childrenCount: number;
+  parentId?: string | null;
 };
 
 export default function AggregatePanel() {
-  const [txs, setTxs] = useState<TxInput[] | null>(null);
-  const [lines, setLines] = useState<StatementLine[] | null>(null);
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+  const [bank, setBank] = useState<
+    "paypay" | "gmo" | "sbi" | "mizuhoebiz" | "mizuhobizweb" | "all"
+  >("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ReportResponse | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // UI options for aggregateStatement
-  const [dropZero, setDropZero] = useState(true);
-  const [taglessMode, setTaglessMode] = useState<TaglessMode>('default');
-  const [keywords, setKeywords] = useState('notag'); // comma-separated
-
-  const isTagless = useMemo(() => {
-    return (tag: string | null | undefined) => {
-      if (taglessMode === 'never') return false;
-      if (tag == null) return true;
-      const t = tag.trim();
-      if (taglessMode === 'empty-only') return t.length === 0;
-      if (taglessMode === 'keywords') {
-        const set = new Set(
-          keywords
-            .split(',')
-            .map((s) => s.trim().toLowerCase())
-            .filter(Boolean)
-        );
-        return t.length === 0 || set.has(t.toLowerCase());
-      }
-      // default: empty or "notag" (case-insensitive)
-      return t.length === 0 || t.toLowerCase() === 'notag';
-    };
-  }, [keywords, taglessMode]);
-
-  const handleAggregate = async () => {
+  const fetchReport = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/transactions/all');
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (bank && bank !== "all") params.set("bank", bank);
+      const qs = params.toString();
+      const url = qs ? `/api/report?${qs}` : "/api/report";
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`failed: ${res.status}`);
-      const data: TransactionRow[] = await res.json();
-      const nextTxs: TxInput[] = data.map(toTxInput);
-      setTxs(nextTxs);
-      const aggregated = aggregateStatement(nextTxs, { isTagless, dropZero });
-      setLines(aggregated);
+      const json: ReportResponse = await res.json();
+      setData(json);
+      // 初回は第1階層だけ展開
+      const next = new Set<string>();
+      (json.tree || []).forEach((n) => next.add(n.id));
+      setExpanded(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'unknown error');
+      setError(e instanceof Error ? e.message : "unknown error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [from, to, bank]);
 
-  // Re-aggregate when options change
   useEffect(() => {
-    if (!txs) return;
-    setLines(aggregateStatement(txs, { isTagless, dropZero }));
-  }, [txs, isTagless, dropZero]);
+    // 初期ロード
+    fetchReport();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const rows: AggRow[] = useMemo(() => {
-    if (!lines) return [];
-    return lines.map((l, i) => ({
-      id: `${i}`,
-      tag: l.tag == null ? '' : typeof l.tag === 'string' ? l.tag : '',
-      side: l.side,
-      amount: l.amount,
-      aggregated: l.aggregated,
-      index: l.index
-    }));
-  }, [lines]);
+  useEffect(() => {
+    // フィルタ変更で自動再取得
+    fetchReport();
+  }, [from, to, bank, fetchReport]);
 
-  const columns: Column<AggRow>[] = useMemo(
-    () => [
-      { key: 'tag', name: 'タグ', width: 180 },
-      { key: 'side', name: '区分', width: 80 },
-      {
-        key: 'amount',
-        name: '金額',
-        width: 120,
-        renderCell: ({ row }) => (
-          <div className="text-right tabular-nums">
-            {row.amount.toLocaleString('ja-JP')}
-          </div>
-        )
-      },
-      { key: 'index', name: '元行Idx', width: 90 }
-    ],
-    []
+  const rows = useMemo<FlatRow[]>(
+    () => flattenVisible(data?.tree ?? [], expanded),
+    [data, expanded]
   );
+  const totalDebit = useMemo(
+    () => rows.reduce<number>((s, r) => s + (r.debit ?? 0), 0),
+    [rows]
+  );
+  const totalCredit = useMemo(
+    () => rows.reduce<number>((s, r) => s + (r.credit ?? 0), 0),
+    [rows]
+  );
+
+  function toggle(id: string) {
+    const next = new Set(expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpanded(next);
+  }
+  function expandAll() {
+    const all = new Set<string>();
+    collectIds(data?.tree ?? [], all);
+    setExpanded(all);
+  }
+  function collapseAll() {
+    setExpanded(new Set());
+  }
 
   return (
     <section className="space-y-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">全銀行データの集計</CardTitle>
-          <Button onClick={handleAggregate} disabled={loading} variant="default">
-            {loading ? '集計中…' : '集計'}
-          </Button>
+          <CardTitle className="text-base">集計レポート</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button onClick={fetchReport} disabled={loading}>
+              {loading ? "更新中…" : "更新"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <label className="flex items-center gap-2">
-              <span className="text-gray-600">0円の行を除外</span>
-              <input
-                type="checkbox"
-                checked={dropZero}
-                onChange={(e) => setDropZero(e.target.checked)}
+              <span className="text-gray-600">From</span>
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
               />
             </label>
-
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">タグなしの判定</span>
-              <Select value={taglessMode} onValueChange={(v) => setTaglessMode(v as TaglessMode)}>
-                <SelectTrigger size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">空 or "notag"</SelectItem>
-                  <SelectItem value="empty-only">空のみ</SelectItem>
-                  <SelectItem value="keywords">キーワード指定</SelectItem>
-                  <SelectItem value="never">常にタグあり扱い</SelectItem>
-                </SelectContent>
-              </Select>
-              {taglessMode === 'keywords' && (
-                <Input
-                  className="w-64"
-                  placeholder="例: notag, -, 未設定"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
+            <label className="flex items-center gap-2">
+              <span className="text-gray-600">To</span>
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-gray-600">銀行</span>
+              <div className="w-48">
+                <BankSelect
+                  value={bank as any}
+                  onChange={(v) => setBank(v as any)}
                 />
-              )}
+              </div>
+            </label>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="secondary" onClick={expandAll}>
+                全展開
+              </Button>
+              <Button variant="secondary" onClick={collapseAll}>
+                全折りたたみ
+              </Button>
             </div>
           </div>
+          {/* 現在の条件／APIエコー */}
+          {/* <div className="mt-2 text-xs text-gray-500 space-x-3">
+            <span>
+              条件: from={from || "-"} to={to || "-"} bank={bank || "-"}
+            </span>
+            {data && (
+              <span>
+                API: from={data.from ?? "-"} to={data.to ?? "-"} bank=
+                {data.bank ?? "-"}
+              </span>
+            )}
+          </div> */}
         </CardContent>
       </Card>
 
@@ -170,23 +176,136 @@ export default function AggregatePanel() {
         </Card>
       )}
 
-      {lines && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">集計結果</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full h-[400px]">
-              <DataGrid<AggRow>
-                columns={columns}
-                rows={rows}
-                rowKeyGetter={(r) => r.id}
-                defaultColumnOptions={defaultColumnOptions}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">結果</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-auto max-h-[480px]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="py-1 px-2">タグ</th>
+                  <th className="py-1 px-2 text-right">支出(借方)</th>
+                  <th className="py-1 px-2 text-right">収入(貸方)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r: FlatRow) => (
+                  <React.Fragment key={r.id}>
+                    <tr className="border-b last:border-0">
+                      <td className="py-1 px-2 whitespace-nowrap">
+                        <div className={indentClass(r.depth)}>
+                          <span className="mr-1 w-5 h-5 flex items-center justify-center">
+                            {r.childrenCount > 0 ? (
+                              <button
+                                onClick={() => toggle(r.id)}
+                                aria-label={
+                                  expanded.has(r.id) ? "折りたたむ" : "展開"
+                                }
+                                className="w-full h-full rounded hover:bg-gray-100"
+                              >
+                                {expanded.has(r.id) ? "-" : "+"}
+                              </button>
+                            ) : (
+                              // 子要素がない場合は、空のスペースを確保
+                              <div className="w-5 h-5"></div>
+                            )}
+                          </span>
+                          <span className="font-medium">{r.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-1 px-2 text-right tabular-nums">
+                        {formatYen(r.debit)}
+                      </td>
+                      <td className="py-1 px-2 text-right tabular-nums">
+                        {formatYen(r.credit)}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t">
+                  <td className="py-1 px-2 font-semibold">合計</td>
+                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
+                    {formatYen(totalDebit)}
+                  </td>
+                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
+                    {formatYen(totalCredit)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
+}
+
+function formatYen(n: number) {
+  return (n ?? 0).toLocaleString("ja-JP");
+}
+
+function collectIds(nodes: ReportNode[], out: Set<string>) {
+  for (const n of nodes) {
+    out.add(n.id);
+    collectIds(n.children ?? [], out);
+  }
+}
+
+function flattenWithDepth(
+  nodes: ReportNode[],
+  depth = 0
+): Array<ReportNode & { depth: number; childrenCount: number }> {
+  const out: Array<ReportNode & { depth: number; childrenCount: number }> = [];
+  for (const n of nodes) {
+    const item = { ...n, depth, childrenCount: n.children?.length ?? 0 };
+    out.push(item);
+    out.push(...flattenWithDepth(n.children ?? [], depth + 1));
+  }
+  return out;
+}
+
+function flattenVisible(
+  nodes: ReportNode[],
+  expanded: Set<string>,
+  depth = 0,
+  parentExpanded = true
+): FlatRow[] {
+  const out: FlatRow[] = [];
+  for (const n of nodes) {
+    const isRoot = depth === 0;
+    const visible = isRoot || parentExpanded;
+    if (visible) {
+      out.push({ ...n, depth, childrenCount: n.children?.length ?? 0 });
+      const childParentExpanded = expanded.has(n.id);
+      if (n.children && n.children.length) {
+        out.push(
+          ...flattenVisible(
+            n.children,
+            expanded,
+            depth + 1,
+            childParentExpanded
+          )
+        );
+      }
+    }
+  }
+  return out;
+}
+
+function indentClass(depth: number) {
+  const map = [
+    "flex items-center pl-0",
+    "flex items-center pl-4",
+    "flex items-center pl-8",
+    "flex items-center pl-12",
+    "flex items-center pl-16",
+    "flex items-center pl-20",
+    "flex items-center pl-24",
+    "flex items-center pl-28",
+  ];
+  return map[Math.min(depth, map.length - 1)];
 }

@@ -11,19 +11,31 @@ type Node = {
 	children: Node[];
 };
 
-function parseDateParam(v: string | null): Date | null {
+function parseYMD(v: string | null): { y: number; m: number; d: number } | null {
 	if (!v) return null;
-	// accept YYYY-MM-DD or YYYY/MM/DD
-	const s = v.replace(/\//g, '-');
-	const d = new Date(s);
-	return isNaN(d.getTime()) ? null : d;
+	const s = v.trim().replace(/\./g, '-').replace(/\//g, '-');
+	const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+	if (!m) return null;
+	const y = parseInt(m[1], 10);
+	const mo = parseInt(m[2], 10);
+	const d = parseInt(m[3], 10);
+	if (!y || !mo || !d) return null;
+	return { y, m: mo, d };
+}
+
+function startOfDayLocal(ymd: { y: number; m: number; d: number }): Date {
+	return new Date(ymd.y, ymd.m - 1, ymd.d, 0, 0, 0, 0);
+}
+
+function endOfDayLocal(ymd: { y: number; m: number; d: number }): Date {
+	return new Date(ymd.y, ymd.m - 1, ymd.d, 23, 59, 59, 999);
 }
 
 export async function GET(req: NextRequest) {
 	try {
 		const { searchParams } = new URL(req.url);
-		const from = parseDateParam(searchParams.get('from'));
-		const to = parseDateParam(searchParams.get('to'));
+		const fromYMD = parseYMD(searchParams.get('from'));
+		const toYMD = parseYMD(searchParams.get('to'));
 		const bank = searchParams.get('bank');
 
 		const tags = await prisma.tag.findMany({
@@ -41,14 +53,29 @@ export async function GET(req: NextRequest) {
 		}
 
 		const whereTx: any = {};
-		if (from || to || bank) {
+		if (fromYMD || toYMD || bank) {
 			if (bank) whereTx.bank = bank;
-			if (from || to) whereTx.date = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
+			if (fromYMD || toYMD) {
+				whereTx.date = {
+					...(fromYMD ? { gte: startOfDayLocal(fromYMD) } : {}),
+					...(toYMD ? { lte: endOfDayLocal(toYMD) } : {}),
+				};
+			}
 		}
 
 		const assigns = await prisma.tagAssignment.findMany({
 			where: Object.keys(whereTx).length ? { transaction: whereTx } : {},
 			include: { transaction: { select: { credit: true, debit: true } } },
+		});
+
+		// legacy フィールド `Transaction.tag` のフォールバック集計
+		// すでに TagAssignment がある取引は除外して二重計上を防ぐ
+		const assignedTxIds = new Set(assigns.map((a) => a.transactionId));
+		const legacyWhere: any = { ...(Object.keys(whereTx).length ? whereTx : {}), tag: { not: null } };
+		// 空文字や空白のみは除外
+		const legacyTx = await prisma.transaction.findMany({
+			where: legacyWhere,
+			select: { id: true, tag: true, credit: true, debit: true },
 		});
 
 		const totals = new Map<string, { debit: number; credit: number }>();
@@ -76,6 +103,24 @@ export async function GET(req: NextRequest) {
 			addToAncestors(a.tagId, debit, credit);
 		}
 
+		// legacy タグ名 → Tag.id 解決（同名複数ある場合は最初のもの）
+		const byName = new Map<string, string>();
+		for (const t of tags) {
+			if (!byName.has(t.name)) byName.set(t.name, (t as any).id);
+		}
+		for (const tx of legacyTx) {
+			if (!tx.tag) continue;
+			if (assignedTxIds.has(tx.id)) continue; // 既に assignments でカウント済み
+			const name = String(tx.tag).trim();
+			if (!name) continue;
+			const tagId = byName.get(name);
+			if (!tagId) continue; // タグマスターに存在しない
+			const debit = typeof tx.debit === 'number' ? Math.max(0, Math.trunc(tx.debit)) : 0;
+			const credit = typeof tx.credit === 'number' ? Math.max(0, Math.trunc(tx.credit)) : 0;
+			if (debit === 0 && credit === 0) continue;
+			addToAncestors(tagId, debit, credit);
+		}
+
 		function build(parentId: string | null): Node[] {
 			const ids = childrenByParent.get(parentId) ?? [];
 			return ids.map((id) => {
@@ -94,7 +139,12 @@ export async function GET(req: NextRequest) {
 		}
 
 		const tree = build(null);
-		return NextResponse.json({ from: from?.toISOString() ?? null, to: to?.toISOString() ?? null, bank: bank ?? null, tree });
+		return NextResponse.json({
+			from: fromYMD ? startOfDayLocal(fromYMD).toISOString() : null,
+			to: toYMD ? endOfDayLocal(toYMD).toISOString() : null,
+			bank: bank ?? null,
+			tree
+		});
 	} catch (e) {
 		console.error('[API /report GET]', e);
 		return NextResponse.json({ error: String(e) }, { status: 500 });
