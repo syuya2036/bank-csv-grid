@@ -11,7 +11,7 @@ import TagSelectEditor from '@/components/TagSelectEditor';
 
 /* ------- セルフォーマッタ ------------ */
 export function TagCellFormatter({ row }: RenderCellProps<TransactionRow>) {
-  let style = 'bg-gray-200 text-gray-500'; // 未割当
+  let style = 'bg-gray-200 text-gray-500'; // 未割当（TagAssignmentなし）
   let label = '未割当';
 
   if (row.tag) {

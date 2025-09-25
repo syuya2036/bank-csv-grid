@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       debit:       r.debit,
       balance:     r.balance,
       memo:        r.memo,
-      tag:         r.tag,
+      // tag は使用しない（TagAssignment に統一）
     })),
     skipDuplicates: true,
   });

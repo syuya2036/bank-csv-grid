@@ -33,20 +33,49 @@ export default function TagSelectEditor({
     setTimeout(onClose, 0);
   }
 
-  function handleClear() {
-    onRowChange({ ...row, tag: undefined, isDirty: true }, true);
-    resetAndClose();
+  async function handleClear() {
+    try {
+      if (row.isRegistered) {
+        await fetch(`/api/transactions/${row.id}/tags`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tagIds: [] }),
+        });
+        onRowChange({ ...row, tag: undefined, isDirty: true, tagIds: [] }, true);
+      } else {
+        // 未登録行はローカルに保持して登録時にまとめて反映
+        onRowChange({ ...row, tag: undefined, isDirty: true, tagIds: [] }, true);
+      }
+    } finally {
+      resetAndClose();
+    }
   }
 
-  function handlePick(id: string, name: string) {
+  async function handlePick(id: string, name: string) {
     // 葉: children が無ければ確定
     const pathNodes = [...levels, id];
     const last = findNodeByPath(tree, pathNodes);
     if (last && (!last.children || last.children.length === 0)) {
-      if (row.tag !== name) {
-        onRowChange({ ...row, tag: name, isDirty: true }, true);
+      try {
+        const fullPath = buildPathFromLevels(tree, pathNodes);
+        if (row.isRegistered) {
+          await fetch(`/api/transactions/${row.id}/tags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tagIds: [id] }),
+          });
+          if (row.tag !== fullPath) {
+            onRowChange({ ...row, tag: fullPath, isDirty: true, tagIds: [id] }, true);
+          }
+        } else {
+          // 未登録行: ローカルにIDを保持
+          if (row.tag !== fullPath) {
+            onRowChange({ ...row, tag: fullPath, isDirty: true, tagIds: [id] }, true);
+          }
+        }
+      } finally {
+        resetAndClose();
       }
-      resetAndClose();
       return;
     }
     setLevels(pathNodes);
@@ -186,4 +215,17 @@ function findNodeByPath(nodes: Node[], ids: string[]): Node | undefined {
     list = cur.children ?? [];
   }
   return cur;
+}
+
+// 補助: 選択ID列からフルパス文字列を生成
+function buildPathFromLevels(nodes: Node[], ids: string[]): string {
+  const names: string[] = [];
+  let list = nodes;
+  for (const id of ids) {
+    const cur = list.find((n) => n.id === id);
+    if (!cur) break;
+    names.push(cur.name);
+    list = cur.children ?? [];
+  }
+  return names.join('>');
 }

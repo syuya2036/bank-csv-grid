@@ -23,9 +23,33 @@ export async function GET(request: Request) {
       debit:       true,
       balance:     true,
       memo:        true,
-      tag:         true,
     },
   });
+  const txIds = dbRows.map(r => r.id);
+  const [assigns, tags] = await Promise.all([
+    prisma.tagAssignment.findMany({ where: { transactionId: { in: txIds } }, select: { transactionId: true, tagId: true } }),
+    prisma.tag.findMany({ select: { id: true, name: true, parentId: true } })
+  ]);
+  const tagMap = new Map(tags.map(t => [t.id, { name: t.name, parentId: (t as any).parentId as string | null }]));
+  function buildPath(tagId: string): string {
+    const names: string[] = [];
+    let cur: string | null = tagId;
+    const guard = new Set<string>();
+    while (cur && !guard.has(cur)) {
+      guard.add(cur);
+      const t = tagMap.get(cur);
+      if (!t) break;
+      names.unshift(t.name);
+      cur = t.parentId ?? null;
+    }
+    return names.join('>');
+  }
+  const firstPathByTx = new Map<string, string>();
+  for (const a of assigns) {
+    if (!firstPathByTx.has(a.transactionId)) {
+      firstPathByTx.set(a.transactionId, buildPath(a.tagId));
+    }
+  }
   const data: TransactionRow[] = dbRows.map((r : any)=> ({
     id:          r.id,
     bank:        r.bank as BankCode,
@@ -35,7 +59,7 @@ export async function GET(request: Request) {
     debit:       r.debit,
     balance:     r.balance  ?? 0,
     memo:        r.memo     ?? '',
-    tag:         r.tag      ?? '',
+    tag:         firstPathByTx.get(r.id) ?? '',
     isRegistered: true,
   }));
 

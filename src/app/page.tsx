@@ -50,13 +50,7 @@ export default function Page() {
           body: JSON.stringify(diff.newRows),
         });
       }
-      if (diff.changedTags.length) {
-        await fetch('/api/transactions/bulk-tag', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(diff.changedTags.map((r) => ({ id: r.id, tag: r.tag }))),
-        });
-      }
+      // 既存行のタグ変更は、セル編集時に /transactions/:id/tags PUT 済みとする
 
       const newIds     = diff.newRows.map((r) => r.id);
       const changedIds = diff.changedTags.map((r) => r.id);
