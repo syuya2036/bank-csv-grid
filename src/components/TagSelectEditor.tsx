@@ -20,6 +20,7 @@ export default function TagSelectEditor({
   const [search, setSearch] = useState("");
   const [pendingIds, setPendingIds] = useState<string[] | null>(null); // 葉を含むフルパス候補
   const pendingLeafId = pendingIds ? pendingIds[pendingIds.length - 1] : null;
+  const didInitRef = useRef(false); // 既存タグ初期展開を一度だけ行う
 
   const currentChildren = useMemo(() => {
     let nodes = tree;
@@ -108,6 +109,25 @@ export default function TagSelectEditor({
     () => buildBreadcrumb(tree, levels),
     [tree, levels]
   );
+
+  // 既存行でタグがある場合: パスを初期展開（ルートから葉まで）
+  useEffect(() => {
+    if (didInitRef.current) return;
+    if (!row.tag) return; // 未割当
+    // 既にユーザ操作で pending がある場合は上書きしない
+    if (pendingIds || levels.length > 0) return;
+    const pathNames = row.tag
+      .split(">")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!pathNames.length) return;
+    const ids = findPathIdsByNames(tree, pathNames);
+    if (ids && ids.length) {
+      setPendingIds(ids);
+      setLevels(ids.slice(0, ids.length - 1));
+      didInitRef.current = true;
+    }
+  }, [tree, row.tag, pendingIds, levels]);
 
   // ===== Anchoring & dynamic width =====================================
   // セル内に配置する不可視アンカー（span）を計測してポータル側を配置
@@ -460,4 +480,19 @@ function findPathIdsByLeafId(
     if (res) return res;
   }
   return null;
+}
+
+// パス名配列 ( [Root, Child, Leaf] ) から ID パスを返す。途中まで一致したらそこまで。
+function findPathIdsByNames(
+  nodes: Node[],
+  names: string[],
+  acc: string[] = []
+): string[] | null {
+  if (!names.length) return acc.length ? acc : null;
+  const [head, ...rest] = names;
+  const node = nodes.find((n) => n.name === head);
+  if (!node) return null;
+  const nextAcc = [...acc, node.id];
+  if (rest.length === 0) return nextAcc; // 完全一致
+  return findPathIdsByNames(node.children ?? [], rest, nextAcc);
 }

@@ -99,7 +99,11 @@ export default function Page() {
       </label>
 
       {/* グリッド */}
-      <TransactionGrid rows={localRows} onRowsChange={setLocalRows} />
+      <TransactionGrid
+        rows={localRows}
+        onRowsChange={setLocalRows}
+        allowEditRegistered={editRegistered}
+      />
 
       {/* 一括反映ボタン（既存） */}
       <div className="flex justify-end">
