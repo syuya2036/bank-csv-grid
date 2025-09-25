@@ -211,10 +211,10 @@ export default function TagSelectEditor({
                   width: panelWidth,
                 }}
               >
-                <div className="flex gap-2 mb-2">
+                <div className="flex items-start gap-2 mb-2">
                   <input
                     autoFocus
-                    className="border rounded px-2 py-1 w-full"
+                    className="border rounded px-2 py-1 flex-1 min-w-0"
                     placeholder="検索（名前）"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -225,7 +225,10 @@ export default function TagSelectEditor({
                       }
                     }}
                   />
-                  <button className="border rounded px-2" onClick={handleClear}>
+                  <button
+                    className="border rounded px-2 flex-shrink-0 whitespace-nowrap"
+                    onClick={handleClear}
+                  >
                     未割当
                   </button>
                 </div>
@@ -295,17 +298,24 @@ export default function TagSelectEditor({
                     </div>
                   </>
                 )}
-                <div className="flex justify-between mt-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    {!pendingLeafId ? (
-                      <span className="text-gray-400">
+                <div className="flex justify-between mt-2 text-xs gap-4">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {/* {!pendingLeafId ? (
+                      <span className="text-gray-400 whitespace-nowrap">
                         葉を選択してください
                       </span>
-                    ) : null}
+                    ) : (
+                      <span
+                        className="text-gray-600 truncate max-w-[240px]"
+                        title={buildPathFromLevels(tree, pendingIds!)}
+                      >
+                        候補: {buildPathFromLevels(tree, pendingIds!)}
+                      </span>
+                    )} */}
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center flex-nowrap">
                     <button
-                      className="border rounded px-2 py-1 disabled:opacity-40"
+                      className="border rounded px-2 py-1 disabled:opacity-40 whitespace-nowrap flex-shrink-0"
                       disabled={!pendingLeafId}
                       onClick={() => commitPending()}
                     >
@@ -313,7 +323,7 @@ export default function TagSelectEditor({
                     </button>
                     <button
                       onClick={() => onClose?.()}
-                      className="text-gray-500 hover:underline px-1"
+                      className="text-gray-500 hover:underline px-1 whitespace-nowrap flex-shrink-0"
                     >
                       閉じる
                     </button>
