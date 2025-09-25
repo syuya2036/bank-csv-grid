@@ -1,8 +1,8 @@
 // src/app/api/transactions/route.ts
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { TransactionRow } from '@/types/transaction';
 import type { BankCode } from '@/types/bank';
+import type { TransactionRow } from '@/types/transaction';
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   // Next.js App Router の Web API Request では nextUrl は使えないので
@@ -15,14 +15,14 @@ export async function GET(request: Request) {
   const rows = await prisma.transaction.findMany({
     where: { bank },
     select: {
-      id:          true,
-      bank:        true,
-      date:        true,
+      id: true,
+      bank: true,
+      date: true,
       description: true,
-      credit:      true,
-      debit:       true,
-      balance:     true,
-      memo:        true,
+      credit: true,
+      debit: true,
+      balance: true,
+      memo: true,
     },
     orderBy: { date: 'desc' },
   });
@@ -60,16 +60,16 @@ export async function GET(request: Request) {
   // Prisma の Date → YYYY/MM/DD 文字列に変換しつつ
   // TransactionRow 形にマッピング
   const formatted: TransactionRow[] = rows.map(r => ({
-    id:          r.id,
-    bank:        r.bank as BankCode,
-    date:        r.date.toISOString().slice(0,10).replace(/-/g,'/'),
+    id: r.id,
+    bank: r.bank as BankCode,
+    date: r.date.toISOString().slice(0, 10).replace(/-/g, '/'),
     description: r.description,
-    credit:      r.credit,
-    debit:       r.debit,
-    balance:     r.balance  ?? 0,
-    memo:        r.memo     ?? '',
+    credit: r.credit,
+    debit: r.debit,
+    balance: r.balance ?? 0,
+    memo: r.memo ?? '',
     // DBカラムのtagは使用せず、TagAssignmentからのパスを表示用に格納
-    tag:         firstPathByTx.get(r.id) ?? '',
+    tag: firstPathByTx.get(r.id) ?? '',
     isRegistered: true,               // ← 追加
   }));
 

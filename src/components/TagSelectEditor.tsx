@@ -37,14 +37,20 @@ export default function TagSelectEditor({
     try {
       if (row.isRegistered) {
         await fetch(`/api/transactions/${row.id}/tags`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tagIds: [] }),
         });
-        onRowChange({ ...row, tag: undefined, isDirty: true, tagIds: [] }, true);
+        onRowChange(
+          { ...row, tag: undefined, isDirty: true, tagIds: [] },
+          true
+        );
       } else {
         // 未登録行はローカルに保持して登録時にまとめて反映
-        onRowChange({ ...row, tag: undefined, isDirty: true, tagIds: [] }, true);
+        onRowChange(
+          { ...row, tag: undefined, isDirty: true, tagIds: [] },
+          true
+        );
       }
     } finally {
       resetAndClose();
@@ -60,17 +66,23 @@ export default function TagSelectEditor({
         const fullPath = buildPathFromLevels(tree, pathNodes);
         if (row.isRegistered) {
           await fetch(`/api/transactions/${row.id}/tags`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tagIds: [id] }),
           });
           if (row.tag !== fullPath) {
-            onRowChange({ ...row, tag: fullPath, isDirty: true, tagIds: [id] }, true);
+            onRowChange(
+              { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
+              true
+            );
           }
         } else {
           // 未登録行: ローカルにIDを保持
           if (row.tag !== fullPath) {
-            onRowChange({ ...row, tag: fullPath, isDirty: true, tagIds: [id] }, true);
+            onRowChange(
+              { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
+              true
+            );
           }
         }
       } finally {
@@ -227,5 +239,5 @@ function buildPathFromLevels(nodes: Node[], ids: string[]): string {
     names.push(cur.name);
     list = cur.children ?? [];
   }
-  return names.join('>');
+  return names.join(">");
 }

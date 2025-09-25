@@ -1,6 +1,6 @@
 // src/app/api/transactions/bulk-tag/route.ts
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 
 /**
  * TagAssignment 方式で取引行のタグをまとめて置換するエンドポイント
