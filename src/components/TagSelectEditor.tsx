@@ -16,8 +16,10 @@ export default function TagSelectEditor({
   onClose,
 }: RenderEditCellProps<TransactionRow>) {
   const { tree } = useTagTree();
-  const [levels, setLevels] = useState<string[]>([]); // 選択中の階層の tagId
+  const [levels, setLevels] = useState<string[]>([]); // 中間階層までの選択ID列（葉は含めない）
   const [search, setSearch] = useState("");
+  const [pendingIds, setPendingIds] = useState<string[] | null>(null); // 葉を含むフルパス候補
+  const pendingLeafId = pendingIds ? pendingIds[pendingIds.length - 1] : null;
 
   const currentChildren = useMemo(() => {
     let nodes = tree;
@@ -57,19 +59,21 @@ export default function TagSelectEditor({
     }
   }
 
-  // 葉確定処理を共通化
-  async function commitLeaf(id: string, fullPath: string) {
+  async function commitPending() {
+    if (!pendingIds) return;
+    const leafId = pendingLeafId!;
+    const fullPath = buildPathFromLevels(tree, pendingIds);
     try {
       if (row.isRegistered) {
         await fetch(`/api/transactions/${row.id}/tags`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tagIds: [id] }),
+          body: JSON.stringify({ tagIds: [leafId] }),
         });
       }
       if (row.tag !== fullPath) {
         onRowChange(
-          { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
+          { ...row, tag: fullPath, isDirty: true, tagIds: [leafId] },
           true
         );
       }
@@ -79,17 +83,19 @@ export default function TagSelectEditor({
   }
 
   function handlePickAtDepth(id: string, depth: number) {
-    // depth の列で選択されたので、その深さまでの経路を保持して更新
+    // 選択列のdepthより深い部分を切り捨てて進む
     const newPath = [...levels.slice(0, depth), id];
     const node = findNodeByPath(tree, newPath);
     if (!node) return;
     const isLeaf = !node.children || node.children.length === 0;
     if (isLeaf) {
-      const fullPath = buildPathFromLevels(tree, newPath);
-      void commitLeaf(id, fullPath);
+      // 葉は pending に保存し、levels からは除外（直前までの経路を保持）
+      setPendingIds(newPath);
+      setLevels(newPath.slice(0, newPath.length - 1));
       return;
     }
     setLevels(newPath);
+    setPendingIds(null); // 中間ノード選択で pending リセット
   }
 
   const flatFiltered = useMemo(
@@ -229,8 +235,18 @@ export default function TagSelectEditor({
                     {flatFiltered.map((n) => (
                       <button
                         key={n.id}
-                        className="w-full text-left px-2 py-1 hover:bg-gray-100"
-                        onClick={() => commitLeaf(n.id, n.path)}
+                        className={`w-full text-left px-2 py-1 hover:bg-gray-100 ${
+                          pendingLeafId === n.id
+                            ? "bg-blue-50 font-semibold"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          const pathIds = findPathIdsByLeafId(tree, n.id);
+                          if (pathIds) {
+                            setPendingIds(pathIds);
+                            setLevels(pathIds.slice(0, pathIds.length - 1));
+                          }
+                        }}
                       >
                         {n.path}
                       </button>
@@ -260,6 +276,7 @@ export default function TagSelectEditor({
                             onClick={() => {
                               // 途中の階層をクリックでその深さまでに戻る
                               setLevels(levels.slice(0, i + 1));
+                              setPendingIds(null);
                             }}
                           >
                             {b.name}
@@ -268,17 +285,39 @@ export default function TagSelectEditor({
                       ))}
                     </div>
                     <div className="flex gap-2 overflow-auto pr-1 max-h-[320px]">
-                      {renderLevel(tree, levels, handlePickAtDepth, COL_WIDTH)}
+                      {renderLevel(
+                        tree,
+                        levels,
+                        handlePickAtDepth,
+                        COL_WIDTH,
+                        pendingLeafId
+                      )}
                     </div>
                   </>
                 )}
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={() => onClose?.()}
-                    className="text-xs text-gray-500 hover:underline"
-                  >
-                    閉じる
-                  </button>
+                <div className="flex justify-between mt-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    {!pendingLeafId ? (
+                      <span className="text-gray-400">
+                        葉を選択してください
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <button
+                      className="border rounded px-2 py-1 disabled:opacity-40"
+                      disabled={!pendingLeafId}
+                      onClick={() => commitPending()}
+                    >
+                      確定
+                    </button>
+                    <button
+                      onClick={() => onClose?.()}
+                      className="text-gray-500 hover:underline px-1"
+                    >
+                      閉じる
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>,
@@ -311,7 +350,8 @@ function renderLevel(
   nodes: Node[],
   levels: string[],
   onPickAtDepth: (id: string, depth: number) => void,
-  colWidth = 160
+  colWidth = 160,
+  pendingLeafId: string | null
 ): JSX.Element[] {
   const cols: JSX.Element[] = [];
   let colNodes: Node[] = nodes;
@@ -325,7 +365,9 @@ function renderLevel(
         {colNodes.map((n) => (
           <div key={n.id}>
             <button
-              className="w-full text-left px-2 py-1 hover:bg-gray-100"
+              className={`w-full text-left px-2 py-1 hover:bg-gray-100 ${
+                pendingLeafId === n.id ? "bg-blue-50 font-semibold" : ""
+              }`}
               onClick={() => onPickAtDepth(n.id, depth)}
             >
               {n.name}
@@ -388,4 +430,21 @@ function buildPathFromLevels(nodes: Node[], ids: string[]): string {
     list = cur.children ?? [];
   }
   return names.join(">");
+}
+
+// 葉IDからそのフルパス（ID列）を返す。見つからない場合 null。
+function findPathIdsByLeafId(
+  nodes: Node[],
+  leafId: string,
+  acc: string[] = []
+): string[] | null {
+  for (const n of nodes) {
+    const nextPath = [...acc, n.id];
+    if ((!n.children || n.children.length === 0) && n.id === leafId) {
+      return nextPath;
+    }
+    const res = findPathIdsByLeafId(n.children ?? [], leafId, nextPath);
+    if (res) return res;
+  }
+  return null;
 }
