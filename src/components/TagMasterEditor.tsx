@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useTags } from "@/hooks/useTags";
 import type { TagNode } from "@/types/tag";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** 内部勘定（タグ）マスタ管理：ツリー + 子追加（カスケード流用） */
 export const TagMasterEditor: React.FC = () => {
@@ -14,6 +14,12 @@ export const TagMasterEditor: React.FC = () => {
   const { toast } = useToast();
   const [selected, setSelected] = useState<string | null>(null);
   const [childName, setChildName] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // ルートを明示的に選択解除した時にも入力へフォーカス
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [selected]);
 
   const flat = useMemo(() => flatten(tree), [tree]);
   const selectedNode = selected ? flat.find((n) => n.id === selected) : null;
@@ -61,7 +67,32 @@ export const TagMasterEditor: React.FC = () => {
     <Card className="p-4 space-y-3">
       <div className="flex items-start gap-4">
         {/* 左: ツリー（折り畳み付き） */}
-        <div className="flex-1 overflow-auto max-h-[360px] border rounded p-2">
+        <div className="flex-1 overflow-auto max-h-[360px] border rounded p-2 space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-semibold">タグツリー</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelected(null); // ルートを選択状態に相当
+                setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+              title="ルート直下にタグを追加"
+            >
+              + ルートに追加
+            </Button>
+            {selectedNode && (
+              <button
+                className="ml-auto text-xs text-blue-600 hover:underline"
+                onClick={() => {
+                  setSelected(null);
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+              >
+                ルートへ追加に切替
+              </button>
+            )}
+          </div>
           <TagTree
             nodes={tree}
             selectedId={selected}
@@ -77,6 +108,7 @@ export const TagMasterEditor: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <Input
+              ref={inputRef}
               placeholder="子タグ名を入力して Enter"
               value={childName}
               onChange={(e) => setChildName(e.target.value)}

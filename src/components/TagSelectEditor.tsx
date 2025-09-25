@@ -5,7 +5,7 @@
 import { UNASSIGNED_TAG } from "@/constants/tags";
 import { useTagTree } from "@/hooks/useTagTree";
 import type { TransactionRow } from "@/types/transaction";
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RenderEditCellProps } from "react-data-grid";
 import { createPortal } from "react-dom";
 const EMPTY = UNASSIGNED_TAG;
@@ -57,40 +57,39 @@ export default function TagSelectEditor({
     }
   }
 
-  async function handlePick(id: string, name: string) {
-    // 葉: children が無ければ確定
-    const pathNodes = [...levels, id];
-    const last = findNodeByPath(tree, pathNodes);
-    if (last && (!last.children || last.children.length === 0)) {
-      try {
-        const fullPath = buildPathFromLevels(tree, pathNodes);
-        if (row.isRegistered) {
-          await fetch(`/api/transactions/${row.id}/tags`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tagIds: [id] }),
-          });
-          if (row.tag !== fullPath) {
-            onRowChange(
-              { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
-              true
-            );
-          }
-        } else {
-          // 未登録行: ローカルにIDを保持
-          if (row.tag !== fullPath) {
-            onRowChange(
-              { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
-              true
-            );
-          }
-        }
-      } finally {
-        resetAndClose();
+  // 葉確定処理を共通化
+  async function commitLeaf(id: string, fullPath: string) {
+    try {
+      if (row.isRegistered) {
+        await fetch(`/api/transactions/${row.id}/tags`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tagIds: [id] }),
+        });
       }
+      if (row.tag !== fullPath) {
+        onRowChange(
+          { ...row, tag: fullPath, isDirty: true, tagIds: [id] },
+          true
+        );
+      }
+    } finally {
+      resetAndClose();
+    }
+  }
+
+  function handlePickAtDepth(id: string, depth: number) {
+    // depth の列で選択されたので、その深さまでの経路を保持して更新
+    const newPath = [...levels.slice(0, depth), id];
+    const node = findNodeByPath(tree, newPath);
+    if (!node) return;
+    const isLeaf = !node.children || node.children.length === 0;
+    if (isLeaf) {
+      const fullPath = buildPathFromLevels(tree, newPath);
+      void commitLeaf(id, fullPath);
       return;
     }
-    setLevels(pathNodes);
+    setLevels(newPath);
   }
 
   const flatFiltered = useMemo(
@@ -98,60 +97,188 @@ export default function TagSelectEditor({
     [tree, search]
   );
 
-  // クリッピング回避のため、フルスクリーンのモーダルとして表示
+  // 現在 levels が指している経路上のノード {id,name} の配列
+  const breadcrumb = useMemo(
+    () => buildBreadcrumb(tree, levels),
+    [tree, levels]
+  );
+
+  // ===== Anchoring & dynamic width =====================================
+  // セル内に配置する不可視アンカー（span）を計測してポータル側を配置
+  const cellAnchorRef = useRef<HTMLSpanElement | null>(null);
+  const [anchorRect, setAnchorRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  }>({ top: -9999, left: -9999, width: 0, height: 0 });
+  const [panelWidth, setPanelWidth] = useState<number>(420);
+  const COL_WIDTH = 180; // 各階層列の幅
+
+  function measure() {
+    if (!cellAnchorRef.current) return;
+    // 実セル要素を取得 (react-data-grid の gridcell)
+    const cellEl = cellAnchorRef.current.closest(
+      '[role="gridcell"]'
+    ) as HTMLElement | null;
+    const rect = (cellEl ?? cellAnchorRef.current).getBoundingClientRect();
+    setAnchorRect({
+      top: rect.bottom + window.scrollY, // セル下端
+      left: rect.left + window.scrollX, // セル左端（右揃え計算に使用）
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+
+  useLayoutEffect(() => {
+    measure();
+  }, []);
+
+  useEffect(() => {
+    function onResize() {
+      measure();
+    }
+    function onScroll() {
+      measure();
+    }
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true); // capture scroll from parents
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (search) {
+      setPanelWidth(480);
+      return;
+    }
+    const cols = levels.length + 1; // 現在表示する列数
+    const desired = cols * COL_WIDTH + 32; // padding 分
+    const max = Math.min(window.innerWidth * 0.9, desired);
+    setPanelWidth(max);
+  }, [levels, search]);
+
+  // 画面端からはみ出す場合補正
+  const panelPos = useMemo(() => {
+    const margin = 4;
+    let top = anchorRect.top; // セル下端
+    let left = anchorRect.left + anchorRect.width - panelWidth; // 右揃え
+    if (typeof window !== "undefined") {
+      const vw = window.innerWidth + window.scrollX;
+      const vh = window.innerHeight + window.scrollY;
+      // 横方向補正
+      if (left + panelWidth > vw - margin) left = vw - panelWidth - margin;
+      if (left < margin) left = margin;
+      // 縦方向（下にはみ出す場合は上側へ）
+      const estimatedHeight = 380;
+      if (top + estimatedHeight > vh - margin) {
+        top = anchorRect.top - estimatedHeight - anchorRect.height; // 上に反転
+      }
+      if (top < margin) top = margin;
+    }
+    return { left, top };
+  }, [anchorRect, panelWidth]);
   return (
     <>
+      {/* セル内に描画されるアンカー */}
+      <span ref={cellAnchorRef} className="inline-block w-0 h-0 align-top" />
       {typeof window !== "undefined"
         ? createPortal(
             <div
               className="fixed inset-0 z-[9999]"
-              onMouseDownCapture={(e) => e.stopPropagation()}
+              onMouseDownCapture={(e) => {
+                if (e.target === e.currentTarget) onClose();
+              }}
             >
+              {/* パネル */}
+              {/* eslint-disable-next-line */}
               <div
-                className="absolute inset-0 bg-black/10"
-                onClick={() => onClose()}
-              />
-              <div className="absolute left-1/2 top-16 -translate-x-1/2">
-                <div className="p-2 bg-white rounded shadow-lg min-w-[360px] max-w-[80vw] border">
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      autoFocus
-                      className="border rounded px-2 py-1 w-full"
-                      placeholder="検索（名前）"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          e.stopPropagation();
-                          onClose();
-                        }
-                      }}
-                    />
-                    <button
-                      className="border rounded px-2"
-                      onClick={handleClear}
-                    >
-                      未割当
-                    </button>
-                  </div>
+                // ポータル内の要素。位置はセル計測結果を使ってセット
+                className="absolute p-2 bg-white rounded shadow-lg max-h-[420px] border overflow-hidden flex flex-col tag-editor-panel"
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  top: panelPos.top,
+                  left: panelPos.left,
+                  width: panelWidth,
+                }}
+              >
+                <div className="flex gap-2 mb-2">
+                  <input
+                    autoFocus
+                    className="border rounded px-2 py-1 w-full"
+                    placeholder="検索（名前）"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        e.stopPropagation();
+                        onClose();
+                      }
+                    }}
+                  />
+                  <button className="border rounded px-2" onClick={handleClear}>
+                    未割当
+                  </button>
+                </div>
 
-                  {search ? (
-                    <div className="max-h-96 overflow-auto">
-                      {flatFiltered.map((n) => (
-                        <button
-                          key={n.id}
-                          className="w-full text-left px-2 py-1 hover:bg-gray-100"
-                          onClick={() => handlePick(n.id, n.name)}
-                        >
-                          {n.path}
-                        </button>
+                {search ? (
+                  <div className="max-h-96 overflow-auto pr-1">
+                    {flatFiltered.map((n) => (
+                      <button
+                        key={n.id}
+                        className="w-full text-left px-2 py-1 hover:bg-gray-100"
+                        onClick={() => commitLeaf(n.id, n.path)}
+                      >
+                        {n.path}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {/* Breadcrumb */}
+                    <div className="mb-2 text-xs flex flex-wrap items-center gap-1">
+                      <button
+                        className={`px-1 py-0.5 rounded border hover:bg-gray-50 ${
+                          levels.length === 0 ? "font-semibold bg-gray-100" : ""
+                        }`}
+                        onClick={() => setLevels([])}
+                      >
+                        ルート
+                      </button>
+                      {breadcrumb.map((b, i) => (
+                        <div key={b.id} className="flex items-center gap-1">
+                          <span className="text-gray-400">{">"}</span>
+                          <button
+                            className={`px-1 py-0.5 rounded border hover:bg-gray-50 ${
+                              i === breadcrumb.length - 1
+                                ? "font-semibold bg-gray-100"
+                                : ""
+                            }`}
+                            onClick={() => {
+                              // 途中の階層をクリックでその深さまでに戻る
+                              setLevels(levels.slice(0, i + 1));
+                            }}
+                          >
+                            {b.name}
+                          </button>
+                        </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      {renderLevel(tree, levels, handlePick)}
+                    <div className="flex gap-2 overflow-auto pr-1 max-h-[320px]">
+                      {renderLevel(tree, levels, handlePickAtDepth, COL_WIDTH)}
                     </div>
-                  )}
+                  </>
+                )}
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={() => onClose?.()}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    閉じる
+                  </button>
                 </div>
               </div>
             </div>,
@@ -164,21 +291,42 @@ export default function TagSelectEditor({
 
 type Node = { id: string; name: string; children: Node[] };
 
+// 現在 levels(選択ID列) に対応する経路上のノード配列を取得
+function buildBreadcrumb(
+  tree: Node[],
+  levels: string[]
+): { id: string; name: string }[] {
+  const out: { id: string; name: string }[] = [];
+  let list = tree;
+  for (const id of levels) {
+    const n = list.find((x) => x.id === id);
+    if (!n) break;
+    out.push({ id: n.id, name: n.name });
+    list = n.children ?? [];
+  }
+  return out;
+}
+
 function renderLevel(
   nodes: Node[],
   levels: string[],
-  onPick: (id: string, name: string) => void
+  onPickAtDepth: (id: string, depth: number) => void,
+  colWidth = 160
 ): JSX.Element[] {
   const cols: JSX.Element[] = [];
   let colNodes: Node[] = nodes;
-  for (let i = 0; i <= levels.length; i++) {
+  for (let depth = 0; depth <= levels.length; depth++) {
     cols.push(
-      <div key={i} className="max-h-64 overflow-auto border rounded w-48">
+      <div
+        key={depth}
+        className="max-h-64 overflow-auto border rounded"
+        style={{ width: colWidth }}
+      >
         {colNodes.map((n) => (
           <div key={n.id}>
             <button
               className="w-full text-left px-2 py-1 hover:bg-gray-100"
-              onClick={() => onPick(n.id, n.name)}
+              onClick={() => onPickAtDepth(n.id, depth)}
             >
               {n.name}
             </button>
@@ -186,7 +334,7 @@ function renderLevel(
         ))}
       </div>
     );
-    const sel = levels[i];
+    const sel = levels[depth];
     const next = colNodes.find((n) => n.id === sel);
     if (!next) break;
     colNodes = next.children ?? [];
