@@ -155,16 +155,19 @@ export default function TagSelectEditor({
     };
   }, []);
 
+  // 幅は一度広がったら戻らない（最大値を保持）
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (search) {
-      setPanelWidth(480);
-      return;
-    }
-    const cols = levels.length + 1; // 現在表示する列数
-    const desired = cols * COL_WIDTH + 32; // padding 分
-    const max = Math.min(window.innerWidth * 0.9, desired);
-    setPanelWidth(max);
+    setPanelWidth((prev) => {
+      if (search) {
+        const w = 480;
+        return w > prev ? w : prev;
+      }
+      const cols = levels.length + 1; // 表示列数
+      const desired = cols * COL_WIDTH + 32; // 余白込み期待幅
+      const computed = Math.min(window.innerWidth * 0.9, desired);
+      return computed > prev ? computed : prev; // 縮めない
+    });
   }, [levels, search]);
 
   // 画面端からはみ出す場合補正
