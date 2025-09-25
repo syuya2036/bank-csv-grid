@@ -32,10 +32,10 @@ VALUES
 INSERT INTO "Transaction"
 ("id","bank","date","description","credit","debit","balance","memo","tag","createdAt")
 VALUES
-('clzwx0k8b0001abc123defgh','Mizuhobank','2025-06-15','入金 ACME株式会社 6月分SES',550000,0,3250000,'PJ-SES 2025/06',NULL,now()),
-('clzwx0k8b0002abc123defgh','Mizuhobank','2025-06-28','受託開発 6月検収',300000,0,3550000,'PJ-受託 2025/06',NULL,now()),
-('clzwx0k8b0003abc123defgh','Mizuhobank','2025-06-20','出張 交通費',0,12000,3538000,'プロジェクトA 移動',NULL,now()),
-('clzwx0k8b0004abc123defgh','Mizuhobank','2025-06-25','SaaS 月額',0,5000,3533000,'Teams / Notion 等',NULL,now());
+('clzwx0k8b0001abc123defgh','paypay','2025-06-15','入金 ACME株式会社 6月分SES',550000,0,3250000,'PJ-SES 2025/06',NULL,now()),
+('clzwx0k8b0002abc123defgh','paypay','2025-06-28','受託開発 6月検収',300000,0,3550000,'PJ-受託 2025/06',NULL,now()),
+('clzwx0k8b0003abc123defgh','paypay','2025-06-20','出張 交通費',0,12000,3538000,'プロジェクトA 移動',NULL,now()),
+('clzwx0k8b0004abc123defgh','paypay','2025-06-25','SaaS 月額',0,5000,3533000,'Teams / Notion 等',NULL,now());
 
 -- 3) TagAssignment（取引×葉タグの紐付け）
 -- 保存は「葉のみ」、同一(取引×タグ)の重複禁止。:contentReference[oaicite:6]{index=6}
