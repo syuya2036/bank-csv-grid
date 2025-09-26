@@ -82,12 +82,13 @@ export default function AggregatePanel() {
 
   const rootNodes = useMemo(() => data?.tree ?? [], [data]);
 
-  const totalDebit = useMemo(
-    () => rootNodes.reduce<number>((s, r) => s + (r.debit ?? 0), 0),
-    [rootNodes]
-  );
-  const totalCredit = useMemo(
-    () => rootNodes.reduce<number>((s, r) => s + (r.credit ?? 0), 0),
+  // ネット合計 (収入 - 支出)。支出はマイナス扱い。
+  const totalNet = useMemo(
+    () =>
+      rootNodes.reduce<number>(
+        (s, r) => s + ((r.credit ?? 0) - (r.debit ?? 0)),
+        0
+      ),
     [rootNodes]
   );
 
@@ -106,7 +107,7 @@ export default function AggregatePanel() {
     setExpanded(new Set());
   }
 
-  console.log({ data, rows });
+  // console.log({ data, rows });
 
   return (
     <section className="space-y-3">
@@ -191,8 +192,7 @@ export default function AggregatePanel() {
               <thead>
                 <tr className="text-left border-b">
                   <th className="py-1 px-2">タグ</th>
-                  <th className="py-1 px-2 text-right">支出(借方)</th>
-                  <th className="py-1 px-2 text-right">収入(貸方)</th>
+                  <th className="py-1 px-2 text-right">収支(収入-支出)</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,10 +221,7 @@ export default function AggregatePanel() {
                         </div>
                       </td>
                       <td className="py-1 px-2 text-right tabular-nums">
-                        {formatYen(r.debit)}
-                      </td>
-                      <td className="py-1 px-2 text-right tabular-nums">
-                        {formatYen(r.credit)}
+                        {renderNetAmount(r.credit, r.debit)}
                       </td>
                     </tr>
                   </React.Fragment>
@@ -234,10 +231,7 @@ export default function AggregatePanel() {
                 <tr className="border-t">
                   <td className="py-1 px-2 font-semibold">合計</td>
                   <td className="py-1 px-2 text-right font-semibold tabular-nums">
-                    {formatYen(totalDebit)}
-                  </td>
-                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
-                    {formatYen(totalCredit)}
+                    {formatSignedYen(totalNet)}
                   </td>
                 </tr>
               </tfoot>
@@ -280,22 +274,27 @@ function flattenVisible(
   parentExpanded = true
 ): FlatRow[] {
   const out: FlatRow[] = [];
-  for (const n of nodes) {
+  // 収入(正)→支出(負) 順で並び替え: net = credit - debit
+  const ordered = [...nodes]
+    .map((n, i) => ({ n, i, net: (n.credit ?? 0) - (n.debit ?? 0) }))
+    .sort((a, b) => {
+      const signA = a.net >= 0 ? 0 : 1;
+      const signB = b.net >= 0 ? 0 : 1;
+      if (signA !== signB) return signA - signB; // 正→負
+      return a.i - b.i; // 元の順序維持
+    })
+    .map((x) => x.n);
+
+  for (const n of ordered) {
     const isRoot = depth === 0;
     const visible = isRoot || parentExpanded;
-    if (visible) {
-      out.push({ ...n, depth, childrenCount: n.children?.length ?? 0 });
-      const childParentExpanded = expanded.has(n.id);
-      if (n.children && n.children.length) {
-        out.push(
-          ...flattenVisible(
-            n.children,
-            expanded,
-            depth + 1,
-            childParentExpanded
-          )
-        );
-      }
+    if (!visible) continue;
+    out.push({ ...n, depth, childrenCount: n.children?.length ?? 0 });
+    const childParentExpanded = expanded.has(n.id);
+    if (n.children && n.children.length) {
+      out.push(
+        ...flattenVisible(n.children, expanded, depth + 1, childParentExpanded)
+      );
     }
   }
   return out;
@@ -313,4 +312,17 @@ function indentClass(depth: number) {
     "flex items-center pl-28",
   ];
   return map[Math.min(depth, map.length - 1)];
+}
+
+function renderNetAmount(credit: number, debit: number) {
+  const net = (credit ?? 0) - (debit ?? 0);
+  const cls =
+    net < 0 ? "text-red-600" : net > 0 ? "text-green-700" : "text-gray-600";
+  return <span className={cls}>{formatSignedYen(net)}</span>;
+}
+
+function formatSignedYen(n: number) {
+  const abs = Math.abs(n).toLocaleString("ja-JP");
+  if (n === 0) return "0";
+  return n < 0 ? `-${abs}` : abs;
 }
