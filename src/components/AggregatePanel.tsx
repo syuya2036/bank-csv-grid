@@ -4,7 +4,7 @@ import BankSelect from "@/components/BankSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ReportNode = {
   id: string;
@@ -187,55 +187,106 @@ export default function AggregatePanel() {
           <CardTitle className="text-base">結果</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto max-h-[480px]">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b">
-                  <th className="py-1 px-2">タグ</th>
-                  <th className="py-1 px-2 text-right">収支(収入-支出)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r: FlatRow) => (
-                  <React.Fragment key={r.id}>
-                    <tr className="border-b last:border-0">
-                      <td className="py-1 px-2 whitespace-nowrap">
-                        <div className={indentClass(r.depth)}>
-                          <span className="mr-1 w-5 h-5 flex items-center justify-center">
-                            {r.childrenCount > 0 ? (
-                              <button
-                                onClick={() => toggle(r.id)}
-                                aria-label={
-                                  expanded.has(r.id) ? "折りたたむ" : "展開"
-                                }
-                                className="w-full h-full rounded hover:bg-gray-100"
-                              >
-                                {expanded.has(r.id) ? "-" : "+"}
-                              </button>
-                            ) : (
-                              // 子要素がない場合は、空のスペースを確保
-                              <div className="w-5 h-5"></div>
-                            )}
-                          </span>
-                          <span className="font-medium">{r.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-1 px-2 text-right tabular-nums">
-                        {renderNetAmount(r.credit, r.debit)}
+          <div className="overflow-auto max-h-[600px]">
+            {/** 最大深度を計算し、階層毎に列を分離するレイアウトに変更 */}
+            {(() => {
+              const maxDepth = rows.reduce((m, r) => Math.max(m, r.depth), 0);
+              const depthCols = Array.from(
+                { length: maxDepth + 1 },
+                (_, i) => i
+              );
+              return (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b">
+                      {depthCols.map((d) => (
+                        <th
+                          key={d}
+                          className="py-1 px-2 font-normal text-gray-500 min-w-[140px]"
+                        >
+                          {d === 0 ? "タグ" : ""}
+                        </th>
+                      ))}
+                      <th className="py-1 px-2 text-right">収支(収入-支出)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/** 総合計行（グランドトータル）: 先頭に表示 */}
+                    <tr className="border-b bg-gray-50">
+                      {depthCols.map((d) => (
+                        <td key={d} className="py-1 px-2" />
+                      ))}
+                      <td className="py-1 px-2 text-right font-semibold tabular-nums">
+                        {formatSignedYen(totalNet)}
                       </td>
                     </tr>
-                  </React.Fragment>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t">
-                  <td className="py-1 px-2 font-semibold">合計</td>
-                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
-                    {formatSignedYen(totalNet)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                    {rows.map((r: FlatRow) => {
+                      const isSubtotal = r.childrenCount > 0; // 子を持つ=小計行
+                      return (
+                        <tr
+                          key={r.id}
+                          className={
+                            "border-b last:border-0 " +
+                            (isSubtotal && r.depth === 0 ? "bg-white" : "")
+                          }
+                        >
+                          {depthCols.map((d) => {
+                            if (d !== r.depth) {
+                              return <td key={d} className="py-1 px-2" />;
+                            }
+                            return (
+                              <td
+                                key={d}
+                                className={`py-1 px-2 whitespace-nowrap ${
+                                  isSubtotal ? "font-semibold" : ""
+                                }`}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span className="w-5 h-5 flex items-center justify-center">
+                                    {r.childrenCount > 0 ? (
+                                      <button
+                                        onClick={() => toggle(r.id)}
+                                        aria-label={
+                                          expanded.has(r.id)
+                                            ? "折りたたむ"
+                                            : "展開"
+                                        }
+                                        className="w-full h-full rounded hover:bg-gray-100"
+                                      >
+                                        {expanded.has(r.id) ? "-" : "+"}
+                                      </button>
+                                    ) : (
+                                      <div className="w-5 h-5" />
+                                    )}
+                                  </span>
+                                  <span>{r.name}</span>
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="py-1 px-2 text-right tabular-nums">
+                            {renderNetAmount(r.credit, r.debit, isSubtotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t">
+                      <td
+                        colSpan={depthCols.length}
+                        className="py-1 px-2 font-semibold"
+                      >
+                        合計
+                      </td>
+                      <td className="py-1 px-2 text-right font-semibold tabular-nums">
+                        {formatSignedYen(totalNet)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>
@@ -314,11 +365,12 @@ function indentClass(depth: number) {
   return map[Math.min(depth, map.length - 1)];
 }
 
-function renderNetAmount(credit: number, debit: number) {
+function renderNetAmount(credit: number, debit: number, isSubtotal = false) {
   const net = (credit ?? 0) - (debit ?? 0);
-  const cls =
+  const clsBase =
     net < 0 ? "text-red-600" : net > 0 ? "text-green-700" : "text-gray-600";
-  return <span className={cls}>{formatSignedYen(net)}</span>;
+  const weight = isSubtotal ? " font-semibold" : "";
+  return <span className={clsBase + weight}>{formatSignedYen(net)}</span>;
 }
 
 function formatSignedYen(n: number) {
