@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ReportResponseMonthly } from "@/types/report";
 import {
+  buildReportColumnsDepth,
+  computeMaxDepth,
   flattenVisibleMonthly,
   ReportRow,
-  computeMaxDepth,
-  buildReportColumnsDepth,
 } from "@/utils/reportGrid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataGrid } from "react-data-grid";

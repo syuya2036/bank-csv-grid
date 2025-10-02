@@ -62,36 +62,45 @@ export function buildReportColumnsDepth(
   maxDepth: number,
   toggle: (id: string) => void
 ): Column<ReportRow>[] {
-  const depthCols: Column<ReportRow>[] = Array.from({ length: maxDepth + 1 }, (_, depth) => ({
-    key: `lvl_${depth}`,
-    name: depth === 0 ? 'タグ' : '',
-    width: 160,
-    resizable: true,
-    renderCell: ({ row }) => {
-      if (row.isTotalRow) {
-        // 合計行は最左列にラベル
-        if (depth === 0) return <span className="font-semibold">月合計</span>;
-        return null;
-      }
-      if (row.depth !== depth) return null;
-      const canExpand = row.childrenCount > 0;
-      return (
-        <div className="flex items-center">{/* depth 列なのでインデント不要 */}
-          {canExpand && (
-            <button
-              onClick={(e) => { e.stopPropagation(); toggle(row.id); }}
-              className="w-5 h-5 mr-1 rounded hover:bg-gray-100 border text-xs flex items-center justify-center"
-              aria-label={row.expanded ? '折りたたむ' : '展開'}
-            >
-              {row.expanded ? '-' : '+'}
-            </button>
-          )}
-          {!canExpand && <span className="w-5 h-5 mr-1" />}
-          <span className={row.childrenCount > 0 ? 'font-semibold' : ''}>{row.name}</span>
-        </div>
-      );
-    }
-  }));
+  const depthCols: Column<ReportRow>[] = Array.from(
+    { length: maxDepth + 1 },
+    (_, depth) => ({
+      key: `lvl_${depth}`,
+      name: depth === 0 ? "タグ" : "",
+      width: 160,
+      resizable: true,
+      renderCell: ({ row }) => {
+        if (row.isTotalRow) {
+          // 合計行は最左列にラベル
+          if (depth === 0) return <span className="font-semibold">月合計</span>;
+          return null;
+        }
+        if (row.depth !== depth) return null;
+        const canExpand = row.childrenCount > 0;
+        return (
+          <div className="flex items-center">
+            {/* depth 列なのでインデント不要 */}
+            {canExpand && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggle(row.id);
+                }}
+                className="w-5 h-5 mr-1 rounded hover:bg-gray-100 border text-xs flex items-center justify-center"
+                aria-label={row.expanded ? "折りたたむ" : "展開"}
+              >
+                {row.expanded ? "-" : "+"}
+              </button>
+            )}
+            {!canExpand && <span className="w-5 h-5 mr-1" />}
+            <span className={row.childrenCount > 0 ? "font-semibold" : ""}>
+              {row.name}
+            </span>
+          </div>
+        );
+      },
+    })
+  );
 
   const monthCols: Column<ReportRow>[] = months.map((m, idx) => ({
     key: `m_${idx}`,
@@ -100,9 +109,11 @@ export function buildReportColumnsDepth(
     resizable: true,
     renderCell: ({ row }) => {
       const v = row.monthlyNet[idx];
-      const cls = row.isTotalRow ? 'font-semibold' : '';
-      return <span className={netColorCls(v) + ' ' + cls}>{formatSignedYen(v)}</span>;
-    }
+      const cls = row.isTotalRow ? "font-semibold" : "";
+      return (
+        <span className={netColorCls(v) + " " + cls}>{formatSignedYen(v)}</span>
+      );
+    },
   }));
   return [...depthCols, ...monthCols];
 }
