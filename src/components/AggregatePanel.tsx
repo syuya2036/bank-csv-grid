@@ -41,7 +41,6 @@ export default function AggregatePanel() {
       if (!res.ok) throw new Error(`failed: ${res.status}`);
       const json: ReportResponseMonthly = await res.json();
       setData(json);
-      // 初回は第1階層だけ展開
       const all = new Set<string>();
       collectIds((json?.tree ?? []) as any, all);
       setExpanded(all);
