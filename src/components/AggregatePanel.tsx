@@ -42,9 +42,9 @@ export default function AggregatePanel() {
       const json: ReportResponseMonthly = await res.json();
       setData(json);
       // 初回は第1階層だけ展開
-      const next = new Set<string>();
-      (json.tree || []).forEach((n) => next.add(n.id));
-      setExpanded(next);
+      const all = new Set<string>();
+      collectIds((json?.tree ?? []) as any, all);
+      setExpanded(all);
     } catch (e) {
       setError(e instanceof Error ? e.message : "unknown error");
     } finally {
