@@ -15,7 +15,7 @@ export default function TagSelectEditor({
   onRowChange,
   onClose,
 }: RenderEditCellProps<TransactionRow>) {
-  const { tree } = useTagTree();
+  const { tree } = useTagTree({ excludeKPI: true });
   const [levels, setLevels] = useState<string[]>([]); // 中間階層までの選択ID列（葉は含めない）
   const [search, setSearch] = useState("");
   const [pendingIds, setPendingIds] = useState<string[] | null>(null); // 葉を含むフルパス候補
@@ -312,8 +312,7 @@ export default function TagSelectEditor({
                     </div>
                     <div className="flex gap-2 overflow-auto pr-1 max-h-[320px]">
                       {renderLevel(
-                        // KPIは明細付与から除外する（API側でもexcludeKPI=1で取得するのが望ましい）
-                        tree.filter((n) => (n as any).type !== 'KPI'),
+                        tree,
                         levels,
                         handlePickAtDepth,
                         COL_WIDTH,
