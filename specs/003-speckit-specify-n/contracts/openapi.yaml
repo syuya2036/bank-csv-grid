@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: Bank CSV Grid - Forecast & KPI API
+  version: 0.1.0
+  description: 月次予測（KPI連動）機能の契約。タグ×月のKPI/予測の保存・取得、および定義の取得。
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/forecast:
+    get:
+      summary: 指定月の予測/KPIの取得
+      parameters:
+        - in: query
+          name: ym
+          schema:
+            type: string
+            example: "2025-10"
+          required: true
+        - in: query
+          name: tagIds
+          description: 取得対象タグIDのカンマ区切り。未指定で全件。
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyMetrics'
+    put:
+      summary: 指定月のKPI/予測セルの保存（数値/式）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertMonthlyMetricsRequest'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpsertResult'
+        '400':
+          description: Validation error (循環参照/無効な式)
+  /api/tags:
+    get:
+      summary: タグ一覧（種別・階層込み）。KPIは明細付与画面では除外。
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tags'
+components:
+  schemas:
+    Tag:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [SUBJECT, KPI]
+    Tags:
+      type: array
+      items:
+        $ref: '#/components/schemas/Tag'
+    MonthlyMetric:
+      type: object
+      properties:
+        tagId:
+          type: string
+        yearMonth:
+          type: string
+          example: "2025-10"
+        kind:
+          type: string
+          enum: [ACTUAL, FORECAST, KPI]
+        value:
+          type: number
+          nullable: true
+        formula:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+    MonthlyMetrics:
+      type: array
+      items:
+        $ref: '#/components/schemas/MonthlyMetric'
+    UpsertMonthlyMetricsRequest:
+      type: object
+      properties:
+        ym:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyMetric'
+      required: [ym, items]
+    UpsertResult:
+      type: object
+      properties:
+        saved:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string

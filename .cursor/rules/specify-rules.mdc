@@ -1,0 +1,24 @@
+# bank-csv-grid Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2025-10-16
+
+## Active Technologies
+- TypeScript (Next.js 15), React 18 + Next.js, React, react-data-grid, SWR, Prisma, HyperFormula (003-speckit-specify-n)
+
+## Project Structure
+```
+src/
+tests/
+```
+
+## Commands
+npm test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] npm run lint
+
+## Code Style
+TypeScript (Next.js 15), React 18: Follow standard conventions
+
+## Recent Changes
+- 003-speckit-specify-n: Added TypeScript (Next.js 15), React 18 + Next.js, React, react-data-grid, SWR, Prisma, HyperFormula
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
