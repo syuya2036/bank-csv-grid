@@ -4,9 +4,11 @@ import { getTagTree } from '@/utils/tags';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/tags: 全Tag取得
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const tree = await getTagTree({ onlyActive: true });
+    const { searchParams } = new URL(req.url);
+    const excludeKPI = searchParams.get('excludeKPI') === '1';
+    const tree = await getTagTree({ onlyActive: true, excludeKPI });
     return NextResponse.json(tree);
   } catch (error) {
     console.error('[API /tags GET]', error);
@@ -23,6 +25,7 @@ export async function POST(req: NextRequest) {
     const parentId = body?.parentId ?? null;
     const order = Number.isFinite(body?.order) ? Number(body.order) : 0;
     const active = body?.active ?? true;
+    const type = body?.type ?? 'SUBJECT';
 
     if (!name) {
       return NextResponse.json({ error: 'Tag name required' }, { status: 400 });
@@ -40,7 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tag name already exists in the same parent' }, { status: 409 });
     }
 
-    const tag = await prisma.tag.create({ data: { name, order, active, parentId } });
+    const tag = await prisma.tag.create({ data: { name, order, active, parentId, type } });
     return NextResponse.json(tag, { status: 201 });
   } catch (error) {
     console.error('[API /tags POST]', error);
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
 // PATCH /api/tags: idで編集
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, name, parentId, order, active } = await req.json();
+    const { id, name, parentId, order, active, type } = await req.json();
     if (!id || !name || typeof name !== 'string' || name.trim() === '') {
       return NextResponse.json({ error: 'Tag id and name required' }, { status: 400 });
     }
@@ -64,7 +67,7 @@ export async function PATCH(req: NextRequest) {
     if (dup) {
       return NextResponse.json({ error: 'Tag name already exists in the same parent' }, { status: 409 });
     }
-    const tag = await prisma.tag.update({ where: { id }, data: { name, parentId: parentId ?? null, order: order ?? exists.order, active: active ?? exists.active } });
+    const tag = await prisma.tag.update({ where: { id }, data: { name, parentId: parentId ?? null, order: order ?? exists.order, active: active ?? exists.active, type: type ?? exists.type } });
     return NextResponse.json(tag);
   } catch (error) {
     console.error('[API /tags PATCH]', error); // または PATCH/GET用

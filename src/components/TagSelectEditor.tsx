@@ -312,7 +312,8 @@ export default function TagSelectEditor({
                     </div>
                     <div className="flex gap-2 overflow-auto pr-1 max-h-[320px]">
                       {renderLevel(
-                        tree,
+                        // KPIは明細付与から除外する（API側でもexcludeKPI=1で取得するのが望ましい）
+                        tree.filter((n) => (n as any).type !== 'KPI'),
                         levels,
                         handlePickAtDepth,
                         COL_WIDTH,

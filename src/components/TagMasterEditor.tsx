@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useTags } from "@/hooks/useTags";
-import type { TagNode } from "@/types/tag";
+import type { TagNode, TagType } from "@/types/tag";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** 内部勘定（タグ）マスタ管理：ツリー + 子追加（カスケード流用） */
@@ -14,6 +14,7 @@ export const TagMasterEditor: React.FC = () => {
   const { toast } = useToast();
   const [selected, setSelected] = useState<string | null>(null);
   const [childName, setChildName] = useState("");
+  const [childType, setChildType] = useState<TagType>("SUBJECT");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // ルートを明示的に選択解除した時にも入力へフォーカス
@@ -28,7 +29,7 @@ export const TagMasterEditor: React.FC = () => {
     const name = childName.trim();
     if (!name) return;
     try {
-      await add(name, selected ?? undefined);
+      await add(name, selected ?? undefined, childType);
       toast({
         title: "追加",
         description: `${
@@ -36,6 +37,7 @@ export const TagMasterEditor: React.FC = () => {
         } に "${name}" を追加`,
       });
       setChildName("");
+      setChildType("SUBJECT");
     } catch (e: any) {
       toast({
         variant: "destructive",
@@ -102,11 +104,11 @@ export const TagMasterEditor: React.FC = () => {
         </div>
 
         {/* 右: 子追加（選択したノード直下） */}
-        <div className="w-[320px] space-y-2">
+        <div className="w-[420px] space-y-2">
           <div className="text-sm text-gray-600">
             追加先: {selectedNode ? selectedNode.path : "ルート"}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Input
               ref={inputRef}
               placeholder="子タグ名を入力して Enter"
@@ -114,6 +116,15 @@ export const TagMasterEditor: React.FC = () => {
               onChange={(e) => setChildName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddChild()}
             />
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={childType}
+              onChange={(e) => setChildType(e.target.value as TagType)}
+              title="タグ種別"
+            >
+              <option value="SUBJECT">科目</option>
+              <option value="KPI">KPI</option>
+            </select>
             <Button onClick={handleAddChild} disabled={!childName.trim()}>
               追加
             </Button>
@@ -196,9 +207,8 @@ function TreeNode({
   return (
     <li>
       <div
-        className={`flex items-center gap-1 pl-${
-          Math.min(depth, 8) * 4
-        } rounded hover:bg-gray-50`}
+        className={"flex items-center gap-1 rounded hover:bg-gray-50"}
+        style={{ paddingLeft: Math.min(depth, 8) * 16 }}
       >
         {hasChildren ? (
           <button
@@ -212,8 +222,8 @@ function TreeNode({
           <span className="w-5" />
         )}
         <button
-          className={`px-1 py-0.5 rounded ${
-            selectedId === node.id ? "bg-blue-100" : ""
+          className={`px-1 py-0.5 rounded ${selectedId === node.id ? "bg-blue-100" : ""} ${
+            (node as any).type === 'KPI' ? 'text-purple-700 bg-purple-50' : ''
           }`}
           onClick={() => onSelect(node.id)}
           title={node.name}

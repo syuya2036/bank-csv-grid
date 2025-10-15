@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { TagType } from '@/types/tag';
 
 export type TagNode = {
 	id: string;
@@ -6,14 +7,16 @@ export type TagNode = {
 	active: boolean;
 	order: number;
 	children: TagNode[];
+	type?: TagType;
 };
 
 export type BuildTreeOptions = {
 	onlyActive?: boolean;
+	excludeKPI?: boolean;
 };
 
 export async function getTagTree(opts: BuildTreeOptions = {}): Promise<TagNode[]> {
-	const { onlyActive = true } = opts;
+	const { onlyActive = true, excludeKPI = false } = opts;
 	const tags = await prisma.tag.findMany({
 		where: onlyActive ? { active: true } : {},
 		orderBy: [{ parentId: 'asc' }, { order: 'asc' }, { name: 'asc' }],
@@ -29,13 +32,17 @@ export async function getTagTree(opts: BuildTreeOptions = {}): Promise<TagNode[]
 
 	function build(parentId: string | null): TagNode[] {
 		const list = byParent.get(parentId) ?? [];
-		return list.map((t) => ({
-			id: t.id,
-			name: t.name,
-			active: (t as any).active ?? true,
-			order: (t as any).order ?? 0,
-			children: build(t.id),
-		}));
+		const mapped = list
+			.map((t) => ({
+				id: t.id,
+				name: t.name,
+				active: (t as any).active ?? true,
+				order: (t as any).order ?? 0,
+				type: (t as any).type as TagType | undefined,
+				children: build(t.id),
+			}))
+			.filter((n) => (excludeKPI ? n.type !== 'KPI' : true));
+		return mapped;
 	}
 
 	return build(null);

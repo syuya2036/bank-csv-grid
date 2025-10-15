@@ -1,7 +1,7 @@
 // src/hooks/useTags.ts
 "use client";
 
-import type { TagNode } from "@/types/tag";
+import type { TagNode, TagType } from "@/types/tag";
 import useSWR from "swr";
 
 const fetcher = (url: string) =>
@@ -13,11 +13,11 @@ const fetcher = (url: string) =>
 export function useTags() {
   const { data, error, isLoading, mutate } = useSWR<TagNode[]>("/api/tags", fetcher);
 
-  async function add(name: string, parentId?: string) {
+  async function add(name: string, parentId?: string, type: TagType = 'SUBJECT') {
     const res = await fetch("/api/tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, parentId: parentId ?? null })
+      body: JSON.stringify({ name, parentId: parentId ?? null, type })
     });
     if (!res.ok) throw new Error(await res.text());
     await mutate();

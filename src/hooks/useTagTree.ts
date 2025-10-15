@@ -1,4 +1,5 @@
 // useTagTree.ts
+import type { TagType } from '@/types/tag';
 import useSWR from 'swr';
 
 export type TagNode = {
@@ -7,6 +8,7 @@ export type TagNode = {
 	active: boolean;
 	order: number;
 	children: TagNode[];
+	type?: TagType;
 };
 
 const fetcher = (url: string) => fetch(url).then(res => {
@@ -14,7 +16,8 @@ const fetcher = (url: string) => fetch(url).then(res => {
 	return res.json();
 });
 
-export function useTagTree() {
-	const { data, error, isLoading, mutate } = useSWR<TagNode[]>('/api/tags', fetcher);
+export function useTagTree({ excludeKPI = false }: { excludeKPI?: boolean } = {}) {
+	const url = excludeKPI ? '/api/tags?excludeKPI=1' : '/api/tags';
+	const { data, error, isLoading, mutate } = useSWR<TagNode[]>(url, fetcher);
 	return { tree: data ?? [], isLoading, isError: !!error, mutate };
 }
