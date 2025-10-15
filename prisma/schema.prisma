@@ -36,6 +36,7 @@ model Tag {
   parentId  String?
   order     Int       @default(0)
   active    Boolean   @default(true)
+  type      TagType   @default(SUBJECT)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -45,8 +46,35 @@ model Tag {
 
   // relations
   assignments TagAssignment[]
+  metrics     MonthlyMetric[]
 
   @@unique([parentId, name])
+}
+
+enum TagType {
+  SUBJECT
+  KPI
+}
+
+model MonthlyMetric {
+  id         String   @id @default(cuid())
+  tagId      String
+  yearMonth  String   // YYYY-MM
+  kind       MetricKind
+  value      Float?
+  formula    String?
+  error      String?
+  updatedAt  DateTime @updatedAt
+
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([tagId, yearMonth, kind])
+}
+
+enum MetricKind {
+  ACTUAL
+  FORECAST
+  KPI
 }
 
 model TagAssignment {
