@@ -4,30 +4,17 @@ import BankSelect from "@/components/BankSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ReportResponseMonthly } from "@/types/report";
+import {
+  buildReportColumnsDepth,
+  computeMaxDepth,
+  flattenVisibleMonthly,
+  ReportRow,
+} from "@/utils/reportGrid";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DataGrid } from "react-data-grid";
 
-type ReportNode = {
-  id: string;
-  name: string;
-  order: number;
-  active: boolean;
-  debit: number;
-  credit: number;
-  children: ReportNode[];
-};
-
-type ReportResponse = {
-  from: string | null;
-  to: string | null;
-  bank: string | null;
-  tree: ReportNode[];
-};
-
-type FlatRow = ReportNode & {
-  depth: number;
-  childrenCount: number;
-  parentId?: string | null;
-};
+// 旧実装の単一列集計型は不要になった
 
 export default function AggregatePanel() {
   const [from, setFrom] = useState<string>("");
@@ -37,7 +24,7 @@ export default function AggregatePanel() {
   >("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<ReportResponse | null>(null);
+  const [data, setData] = useState<ReportResponseMonthly | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const fetchReport = useCallback(async () => {
@@ -52,7 +39,7 @@ export default function AggregatePanel() {
       const url = qs ? `/api/report?${qs}` : "/api/report";
       const res = await fetch(url);
       if (!res.ok) throw new Error(`failed: ${res.status}`);
-      const json: ReportResponse = await res.json();
+      const json: ReportResponseMonthly = await res.json();
       setData(json);
       // 初回は第1階層だけ展開
       const next = new Set<string>();
@@ -75,21 +62,27 @@ export default function AggregatePanel() {
     fetchReport();
   }, [from, to, bank, fetchReport]);
 
-  const rows = useMemo<FlatRow[]>(
-    () => flattenVisible(data?.tree ?? [], expanded),
-    [data, expanded]
-  );
+  const rows = useMemo<ReportRow[]>(() => {
+    if (!data) return [];
+    return flattenVisibleMonthly(data.tree, expanded);
+  }, [data, expanded]);
 
-  const rootNodes = useMemo(() => data?.tree ?? [], [data]);
-
-  const totalDebit = useMemo(
-    () => rootNodes.reduce<number>((s, r) => s + (r.debit ?? 0), 0),
-    [rootNodes]
-  );
-  const totalCredit = useMemo(
-    () => rootNodes.reduce<number>((s, r) => s + (r.credit ?? 0), 0),
-    [rootNodes]
-  );
+  // 月次合計行を計算（階層合計ではなく months 列ごとの全ノード net 和）
+  const monthlyTotals = useMemo(() => {
+    if (!data) return [] as number[];
+    const len = data.months.length;
+    const sums = Array(len).fill(0);
+    function walk(nodes: any[]) {
+      for (const n of nodes) {
+        n.monthly.forEach((m: any, idx: number) => {
+          sums[idx] += (m.credit ?? 0) - (m.debit ?? 0);
+        });
+        if (n.children?.length) walk(n.children);
+      }
+    }
+    walk(data.tree);
+    return sums;
+  }, [data]);
 
   function toggle(id: string) {
     const next = new Set(expanded);
@@ -99,14 +92,39 @@ export default function AggregatePanel() {
   }
   function expandAll() {
     const all = new Set<string>();
-    collectIds(data?.tree ?? [], all);
+    collectIds((data?.tree ?? []) as any, all);
     setExpanded(all);
   }
   function collapseAll() {
     setExpanded(new Set());
   }
 
-  console.log({ data, rows });
+  const months = data?.months ?? [];
+  const maxDepth = useMemo(() => computeMaxDepth(rows), [rows]);
+  const columns = useMemo(
+    () => buildReportColumnsDepth(months, maxDepth, toggle),
+    [months, maxDepth, expanded]
+  );
+
+  // DataGrid 行 + 月合計行 (最後)
+  const gridRows = useMemo<ReportRow[]>(() => {
+    if (!data) return [];
+    return [
+      ...rows,
+      {
+        id: "__monthly_total__",
+        name: "月合計",
+        depth: 0,
+        childrenCount: 0,
+        expanded: false,
+        monthlyNet: monthlyTotals,
+        netTotal: monthlyTotals.reduce((a, b) => a + b, 0),
+        isTotalRow: true,
+      },
+    ];
+  }, [rows, monthlyTotals, data]);
+
+  // console.log({ data, rows });
 
   return (
     <section className="space-y-3">
@@ -186,62 +204,14 @@ export default function AggregatePanel() {
           <CardTitle className="text-base">結果</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto max-h-[480px]">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left border-b">
-                  <th className="py-1 px-2">タグ</th>
-                  <th className="py-1 px-2 text-right">支出(借方)</th>
-                  <th className="py-1 px-2 text-right">収入(貸方)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r: FlatRow) => (
-                  <React.Fragment key={r.id}>
-                    <tr className="border-b last:border-0">
-                      <td className="py-1 px-2 whitespace-nowrap">
-                        <div className={indentClass(r.depth)}>
-                          <span className="mr-1 w-5 h-5 flex items-center justify-center">
-                            {r.childrenCount > 0 ? (
-                              <button
-                                onClick={() => toggle(r.id)}
-                                aria-label={
-                                  expanded.has(r.id) ? "折りたたむ" : "展開"
-                                }
-                                className="w-full h-full rounded hover:bg-gray-100"
-                              >
-                                {expanded.has(r.id) ? "-" : "+"}
-                              </button>
-                            ) : (
-                              // 子要素がない場合は、空のスペースを確保
-                              <div className="w-5 h-5"></div>
-                            )}
-                          </span>
-                          <span className="font-medium">{r.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-1 px-2 text-right tabular-nums">
-                        {formatYen(r.debit)}
-                      </td>
-                      <td className="py-1 px-2 text-right tabular-nums">
-                        {formatYen(r.credit)}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t">
-                  <td className="py-1 px-2 font-semibold">合計</td>
-                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
-                    {formatYen(totalDebit)}
-                  </td>
-                  <td className="py-1 px-2 text-right font-semibold tabular-nums">
-                    {formatYen(totalCredit)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="space-y-2">
+            <div className="h-[520px] border rounded overflow-hidden">
+              <DataGrid
+                columns={columns}
+                rows={gridRows}
+                rowKeyGetter={(r: ReportRow) => r.id}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -253,64 +223,18 @@ function formatYen(n: number) {
   return (n ?? 0).toLocaleString("ja-JP");
 }
 
-function collectIds(nodes: ReportNode[], out: Set<string>) {
+function collectIds(nodes: any[], out: Set<string>) {
   for (const n of nodes) {
+    if (!n) continue;
     out.add(n.id);
-    collectIds(n.children ?? [], out);
+    if (Array.isArray(n.children)) collectIds(n.children, out);
   }
 }
 
-function flattenWithDepth(
-  nodes: ReportNode[],
-  depth = 0
-): Array<ReportNode & { depth: number; childrenCount: number }> {
-  const out: Array<ReportNode & { depth: number; childrenCount: number }> = [];
-  for (const n of nodes) {
-    const item = { ...n, depth, childrenCount: n.children?.length ?? 0 };
-    out.push(item);
-    out.push(...flattenWithDepth(n.children ?? [], depth + 1));
-  }
-  return out;
-}
+// 旧テーブル描画補助関数は不要になったため削除
 
-function flattenVisible(
-  nodes: ReportNode[],
-  expanded: Set<string>,
-  depth = 0,
-  parentExpanded = true
-): FlatRow[] {
-  const out: FlatRow[] = [];
-  for (const n of nodes) {
-    const isRoot = depth === 0;
-    const visible = isRoot || parentExpanded;
-    if (visible) {
-      out.push({ ...n, depth, childrenCount: n.children?.length ?? 0 });
-      const childParentExpanded = expanded.has(n.id);
-      if (n.children && n.children.length) {
-        out.push(
-          ...flattenVisible(
-            n.children,
-            expanded,
-            depth + 1,
-            childParentExpanded
-          )
-        );
-      }
-    }
-  }
-  return out;
-}
-
-function indentClass(depth: number) {
-  const map = [
-    "flex items-center pl-0",
-    "flex items-center pl-4",
-    "flex items-center pl-8",
-    "flex items-center pl-12",
-    "flex items-center pl-16",
-    "flex items-center pl-20",
-    "flex items-center pl-24",
-    "flex items-center pl-28",
-  ];
-  return map[Math.min(depth, map.length - 1)];
+function formatSignedYen(n: number) {
+  const abs = Math.abs(n).toLocaleString("ja-JP");
+  if (n === 0) return "0";
+  return n < 0 ? `-${abs}` : abs;
 }
