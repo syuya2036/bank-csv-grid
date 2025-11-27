@@ -68,16 +68,6 @@ export async function GET(req: NextRequest) {
 			include: { transaction: { select: { credit: true, debit: true } } },
 		});
 
-		// legacy フィールド `Transaction.tag` のフォールバック集計
-		// すでに TagAssignment がある取引は除外して二重計上を防ぐ
-		const assignedTxIds = new Set(assigns.map((a) => a.transactionId));
-		const legacyWhere: any = { ...(Object.keys(whereTx).length ? whereTx : {}), tag: { not: null } };
-		// 空文字や空白のみは除外
-		const legacyTx = await prisma.transaction.findMany({
-			where: legacyWhere,
-			select: { id: true, tag: true, credit: true, debit: true },
-		});
-
 		const totals = new Map<string, { debit: number; credit: number }>();
 
 		function addTo(id: string, debit: number, credit: number) {
@@ -103,23 +93,7 @@ export async function GET(req: NextRequest) {
 			addToAncestors(a.tagId, debit, credit);
 		}
 
-		// legacy タグ名 → Tag.id 解決（同名複数ある場合は最初のもの）
-		const byName = new Map<string, string>();
-		for (const t of tags) {
-			if (!byName.has(t.name)) byName.set(t.name, (t as any).id);
-		}
-		for (const tx of legacyTx) {
-			if (!tx.tag) continue;
-			if (assignedTxIds.has(tx.id)) continue; // 既に assignments でカウント済み
-			const name = String(tx.tag).trim();
-			if (!name) continue;
-			const tagId = byName.get(name);
-			if (!tagId) continue; // タグマスターに存在しない
-			const debit = typeof tx.debit === 'number' ? Math.max(0, Math.trunc(tx.debit)) : 0;
-			const credit = typeof tx.credit === 'number' ? Math.max(0, Math.trunc(tx.credit)) : 0;
-			if (debit === 0 && credit === 0) continue;
-			addToAncestors(tagId, debit, credit);
-		}
+		// 集計対象は TagAssignment のみ
 
 		function build(parentId: string | null): Node[] {
 			const ids = childrenByParent.get(parentId) ?? [];
